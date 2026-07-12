@@ -9,7 +9,6 @@ sealed class AppSettings
 {
     public string DownloadDirectory { get; set; } = "";
     public bool AskBeforeDownload { get; set; } = true;
-    public string HomepageUrl { get; set; } = "";
     public string AboutText { get; set; } = "N网下载器";
     public string UpdateManifestUrl { get; set; } = "";
     public bool UseProxy { get; set; }
@@ -80,6 +79,13 @@ static class AppData
     public static void Log(string text, AppLogLevel level = AppLogLevel.Info)
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level.ToString().ToUpperInvariant()}] {text}";
+        lock (Sync) File.AppendAllText(LogPath, line + Environment.NewLine);
+        Logged?.Invoke(line);
+    }
+
+    public static void LogStartupSeparator()
+    {
+        var line = $"-----此次启动 {DateTime.Now:yyyy-MM-dd HH:mm:ss}-----";
         lock (Sync) File.AppendAllText(LogPath, line + Environment.NewLine);
         Logged?.Invoke(line);
     }

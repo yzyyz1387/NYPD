@@ -311,7 +311,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="文件" Binding="{Binding Name}" Width="2*" MinWidth="150" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTemplateColumn Header="状态" Width="86" MinWidth="76">
+                                        <DataGridTemplateColumn Header="状态" Width="96" MinWidth="92">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding StatusDisplay}" ToolTip="{Binding Status}" MouseLeftButtonUp="StatusText_Click">
@@ -319,6 +319,7 @@
                                                             <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextStyle}">
                                                                 <Setter Property="Cursor" Value="Hand" />
                                                                 <Setter Property="Foreground" Value="#555555" />
+                                                                <Setter Property="Margin" Value="4,0" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsCompleted}" Value="True">
                                                                         <Setter Property="Foreground" Value="#16803C" />
@@ -425,7 +426,7 @@
                                 </Button>
                             </DockPanel>
                             <Border Grid.Row="1" CornerRadius="8" Background="#111827" Padding="14">
-                                <RichTextBox x:Name="LogTextBox" IsReadOnly="True" BorderThickness="0" Background="Transparent" FontFamily="Cascadia Mono" FontSize="13" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+                                <RichTextBox x:Name="LogTextBox" IsReadOnly="True" IsDocumentEnabled="True" BorderThickness="0" Background="Transparent" FontFamily="Cascadia Mono" FontSize="13" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" PreviewMouseLeftButtonUp="LogTextBox_PreviewMouseLeftButtonUp" />
                             </Border>
                         </Grid>
 
@@ -452,7 +453,7 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Text="下载目录" VerticalAlignment="Center" />
-                                        <TextBox x:Name="DefaultDirectoryTextBox" Grid.Column="1" Margin="0,0,8,12" />
+                                        <TextBox x:Name="DefaultDirectoryTextBox" Grid.Column="1" Margin="0,0,8,12" TextChanged="SettingsTextBox_TextChanged" LostFocus="SettingsField_LostFocus" />
                                         <Button Grid.Column="2" Margin="0,0,0,12" Click="BrowseDefaultDirectory_Click">
                                             <StackPanel Orientation="Horizontal">
                                                 <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Margin="0,0,6,0" />
@@ -460,40 +461,28 @@
                                             </StackPanel>
                                         </Button>
 
-                                        <CheckBox x:Name="AskBeforeCheckBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,12" Content="每次下载前显示确认窗口" />
+                                        <CheckBox x:Name="AskBeforeCheckBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,12" Content="每次下载前显示确认窗口" Checked="SettingsField_Changed" Unchecked="SettingsField_Changed" />
 
                                         <TextBlock Grid.Row="2" Text="代理下载" VerticalAlignment="Center" />
                                         <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
-                                            <CheckBox x:Name="UseProxyCheckBox" Content="使用代理" VerticalAlignment="Center" Margin="0,0,16,0" />
-                                            <TextBox x:Name="ProxyHostTextBox" Width="180" VerticalAlignment="Center" />
+                                            <CheckBox x:Name="UseProxyCheckBox" Content="使用代理" VerticalAlignment="Center" Margin="0,0,16,0" Checked="SettingsField_Changed" Unchecked="SettingsField_Changed" />
+                                            <TextBox x:Name="ProxyHostTextBox" Width="180" VerticalAlignment="Center" TextChanged="SettingsTextBox_TextChanged" LostFocus="SettingsField_LostFocus" />
                                             <TextBlock Text=":" VerticalAlignment="Center" Margin="8,0" />
-                                            <TextBox x:Name="ProxyPortTextBox" Width="90" VerticalAlignment="Center" />
+                                            <TextBox x:Name="ProxyPortTextBox" Width="90" VerticalAlignment="Center" TextChanged="SettingsTextBox_TextChanged" LostFocus="SettingsField_LostFocus" />
                                         </StackPanel>
 
-                                        <TextBlock Grid.Row="3" Text="主页 URL" VerticalAlignment="Center" />
-                                        <TextBox x:Name="HomepageTextBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,18" />
-
-                                        <TextBlock Grid.Row="4" Text="下载分片数" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,18">
-                                            <TextBox x:Name="SegmentCountTextBox" Width="90" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Row="3" Text="下载分片数" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,18">
+                                            <TextBox x:Name="SegmentCountTextBox" Width="90" VerticalAlignment="Center" TextChanged="SettingsTextBox_TextChanged" LostFocus="SettingsField_LostFocus" />
                                             <TextBlock Text="1-128，默认 64" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource MaterialDesignBodyLight}" />
                                         </StackPanel>
 
-                                        <TextBlock Grid.Row="5" Text="浏览器插件" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,18">
+                                        <TextBlock Grid.Row="4" Text="浏览器插件" VerticalAlignment="Center" />
+                                        <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,18">
                                             <Button Click="InstallBrowserExtension_Click" ToolTip="释放插件文件并复制安装目录">
                                                 <StackPanel Orientation="Horizontal">
                                                     <materialDesign:PackIcon Kind="Puzzle" Width="18" Height="18" Margin="0,0,6,0" />
                                                     <TextBlock Text="安装浏览器插件" />
-                                                </StackPanel>
-                                            </Button>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <Button Click="SaveSettings_Click">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Margin="0,0,6,0" />
-                                                    <TextBlock Text="保存设置" />
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>
@@ -504,11 +493,9 @@
 
                         <Grid x:Name="AboutPage" Visibility="Collapsed">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <TextBlock Text="关于" Style="{StaticResource PageTitleStyle}" />
-                            <Border Grid.Row="1" Style="{StaticResource CardStyle}" VerticalAlignment="Top">
+                            <Border Grid.Row="0" Style="{StaticResource CardStyle}" VerticalAlignment="Top">
                                 <StackPanel>
                                     <StackPanel HorizontalAlignment="Center" Margin="0,10,0,24">
                                         <Ellipse Width="88" Height="88">
@@ -528,24 +515,46 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Grid.Column="0" CornerRadius="8" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Padding="18" Margin="0,0,8,0">
+                                        <Border Grid.Column="0" CornerRadius="8" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Background="Transparent" Padding="18" Margin="0,0,8,0">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="112" />
+                                                    <ColumnDefinition Width="104" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <Image Source="ico.png" Width="92" Height="92" Stretch="Uniform" VerticalAlignment="Top" />
-                                                <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                                    <Button HorizontalAlignment="Right" Click="CheckUpdatePlaceholder_Click" ToolTip="检查更新逻辑预留">
+                                                <Image Source="ico.png" Width="92" Height="92" Stretch="Uniform" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Margin="16,0,12,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="N网下载器" FontSize="22" FontWeight="SemiBold" />
+                                                    <TextBlock Text="才不是什么纽约警察局呢~" FontSize="12" Foreground="{DynamicResource MaterialDesignBodyLight}" Margin="0,4,0,0">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Opacity" Value="0" />
+                                                                <Setter Property="IsHitTestVisible" Value="False" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="True">
+                                                                        <Setter Property="Opacity" Value="1" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="NYPD-Nexus YZ Patrol Downloader" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                    <TextBlock x:Name="VersionTextBlock" Margin="0,8,0,0" Foreground="{DynamicResource MaterialDesignBodyLight}" />
+                                                    <TextBlock x:Name="AboutBodyTextBlock" Visibility="Collapsed" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                    <Button HorizontalAlignment="Right" Click="CheckUpdatePlaceholder_Click" ToolTip="检查更新">
                                                         <StackPanel Orientation="Horizontal">
                                                             <materialDesign:PackIcon Kind="Update" Width="18" Height="18" Margin="0,0,6,0" />
                                                             <TextBlock Text="检查更新" />
                                                         </StackPanel>
                                                     </Button>
-                                                    <TextBlock Text="N网下载器" FontSize="22" FontWeight="SemiBold" />
-                                                    <TextBlock Text="NYPD-Nexus YZ Patrol Downloader" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                                    <TextBlock x:Name="VersionTextBlock" Margin="0,8,0,0" Foreground="{DynamicResource MaterialDesignBodyLight}" />
-                                                    <TextBlock x:Name="AboutBodyTextBlock" Visibility="Collapsed" />
+                                                    <Button HorizontalAlignment="Right" Margin="0,8,0,0" Click="OpenOfficialSite_Click" ToolTip="访问官网">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <materialDesign:PackIcon Kind="Web" Width="18" Height="18" Margin="0,0,6,0" />
+                                                            <TextBlock Text="访问官网" />
+                                                        </StackPanel>
+                                                    </Button>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
@@ -558,7 +567,7 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Image Source="group-qrcode.png" Width="104" Height="104" Stretch="Uniform" VerticalAlignment="Top" />
                                                 <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                                                    <TextBlock Text="群聊" FontSize="22" FontWeight="SemiBold" />
+                                                    <TextBlock Text="QQ群聊" FontSize="22" FontWeight="SemiBold" />
                                                     <TextBlock Text="群名：园长的RON小圈" Margin="0,10,0,0" />
                                                     <TextBlock Text="群号：991308177" Margin="0,6,0,0" />
                                                 </StackPanel>
@@ -577,6 +586,15 @@
                                             </TextBlock>
                                             <TextBlock>
                                                 <Hyperlink NavigateUri="https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit" RequestNavigate="OpenLink_Click">MaterialDesignColors</Hyperlink>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border CornerRadius="8" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Padding="18" Margin="0,16,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="GitHub 仓库" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10" />
+                                            <TextBlock>
+                                                <Hyperlink NavigateUri="https://github.com/yzyyz1387/NYPD" RequestNavigate="OpenLink_Click">yzyyz1387/NYPD</Hyperlink>
                                             </TextBlock>
                                         </StackPanel>
                                     </Border>

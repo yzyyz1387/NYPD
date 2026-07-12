@@ -40,6 +40,8 @@ static void SelfCheck()
     Assert(FileName.Safe("../bad:name?.zip", "fallback.bin") == "bad_name_.zip");
     var segments = RangeSegment.Create(10, 4);
     Assert(segments.Count == 4 && segments[0] == new RangeSegment(0, 1) && segments[3] == new RangeSegment(7, 9));
+    Assert(!Downloader.ShouldUseSegments(5 * 1024 * 1024 - 1, true, 1));
+    Assert(Downloader.ShouldUseSegments(64L * 1024 * 1024, true, 64));
     Console.WriteLine("self-check passed");
 }
 
@@ -74,6 +76,7 @@ sealed record DirectDownload(Uri Url, Uri? Referrer)
 
 sealed class Downloader
 {
+    private const long BrowserSmallDownloadBytes = 5 * 1024 * 1024;
     private const long MinSegmentBytes = 1024 * 1024;
     private readonly HttpClient _http;
 
@@ -98,7 +101,7 @@ sealed class Downloader
         var paths = DownloadPaths.Create(download, directory);
         var metadata = await ProbeAsync(download, cancellationToken);
         var segmentCount = Math.Clamp(AppData.Settings.SegmentCount, 1, 128);
-        var useSegments = metadata.RangeSupported && metadata.Total >= segmentCount * MinSegmentBytes;
+        var useSegments = ShouldUseSegments(metadata.Total, metadata.RangeSupported, segmentCount);
         // 分片下载合并时会同时存在分片文件和合并文件，磁盘空间按峰值估算。
         if (metadata.Total is long total) EnsureDiskSpace(paths, total, useSegments);
         if (useSegments)
@@ -112,6 +115,12 @@ sealed class Downloader
         if (!Directory.Exists(paths.Directory)) return;
         foreach (var path in Directory.GetFiles(paths.Directory, $"{Path.GetFileName(paths.PartPath)}*"))
             File.Delete(path);
+    }
+
+    public static bool ShouldUseSegments(long? total, bool rangeSupported, int segmentCount)
+    {
+        if (!rangeSupported || total is not long bytes || bytes < BrowserSmallDownloadBytes) return false;
+        return bytes >= Math.Clamp(segmentCount, 1, 128) * MinSegmentBytes;
     }
 
     private async Task<DownloadMetadata> ProbeAsync(DirectDownload download, CancellationToken cancellationToken)
@@ -150,8 +159,9 @@ sealed class Downloader
                 continue;
             }
 
-            var total = response.Content.Headers.ContentRange?.Length ?? metadata.Total;
+            var total = response.Content.Headers.ContentRange?.Length;
             if (total is null && response.Content.Headers.ContentLength is long length) total = length + offset;
+            if (total is null && offset > 0) total = metadata.Total;
             var reporter = new ProgressReporter(metadata.Name, total, offset, progress);
             await using var output = new FileStream(paths.PartPath, offset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
             await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);

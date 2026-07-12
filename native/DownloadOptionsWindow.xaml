@@ -87,7 +87,16 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="文件名" VerticalAlignment="Center" />
-                <TextBox x:Name="FileNameTextBox" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,14" />
+                <Grid Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="112" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="FileNameTextBox" materialDesign:HintAssist.Hint="文件名" />
+                    <TextBlock Grid.Column="1" Text="." VerticalAlignment="Center" Margin="10,0" FontSize="18" Foreground="{DynamicResource MaterialDesignBodyLight}" />
+                    <TextBox x:Name="ExtensionTextBox" Grid.Column="2" materialDesign:HintAssist.Hint="扩展名" />
+                </Grid>
 
                 <TextBlock Grid.Row="1" Text="保存到" VerticalAlignment="Center" />
                 <TextBox x:Name="DirectoryTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,14" />

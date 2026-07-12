@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>N网下载器-NYPD</title>
+    <meta name="description" content="N网下载器-NYPD，把 Nexus Mods 的大文件下载交给一个更顺手的本机工具。">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <nav class="nav">
+      <a class="brand" href="#top"><span>NY<br>PD</span><strong>N网下载器-NYPD</strong></a>
+      <div class="links">
+        <a href="#features">功能</a>
+        <a href="#screenshots">界面</a>
+        <a href="#extension">插件</a>
+        <a href="#install">安装</a>
+        <a href="https://github.com/yzyyz1387/NYPD" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+
+    <header id="top" class="hero">
+      <section class="hero-text">
+        <p class="eyebrow">NYPD · Nexus YZ Patrol Downloader</p>
+        <h1>N网下载器-园长</h1>
+        <p class="lead">下载 N 网 Mod 时，自动捕获下载请求，下载器自动识别并准备下载。</p>
+        <div class="actions">
+          <a class="primary" href="https://github.com/yzyyz1387/NYPD/releases/latest" target="_blank" rel="noopener">GitHub 下载</a>
+          <a class="secondary" href="https://gitee.com/yzyyz1387/NYPD/releases" target="_blank" rel="noopener">Gitee 下载</a>
+        </div>
+        <p id="version" class="version">正在获取最新版本…</p>
+      </section>
+      <section class="hero-shot glow-follow">
+        <img src="images/downloadpage.png" alt="NYPD 下载管理页面">
+      </section>
+    </header>
+
+    <main>
+      <section id="features" class="section">
+        <h2>为什么做它</h2>
+        <div class="cards">
+          <article class="glow-follow">
+            <span>01</span>
+            <h3>大文件交给它</h3>
+            <p>Nexus Mods 的下载开始后，插件会把适合接管的文件送进 NYPD；几 MB 的小文件（用户指定大小）仍然留给浏览器。</p>
+          </article>
+          <article class="glow-follow">
+            <span>02</span>
+            <h3>速度提升（也许）</h3>
+            <p>分段下载，能将普通用户默认以 KB/s 计的速度提升若干。如果有代理，更推荐走代理下载。</p>
+          </article>
+          <article class="glow-follow">
+            <span>03</span>
+            <h3>清爽界面，集成管理</h3>
+            <p>若干功能集于一体，界面清爽，即开即用。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="screenshots" class="section alt">
+        <h2>界面展示</h2>
+        <div class="showcase">
+          <div class="screen-stack">
+            <img src="images/downloadpage.png" alt="下载管理" class="screen-img">
+            <img src="images/historypage.png" alt="下载历史" class="screen-img">
+            <img src="images/logspage.png" alt="操作日志" class="screen-img">
+          </div>
+          <div class="screen-copy glow-follow">
+            <h3>现代化下载管理界面</h3>
+          </div>
+        </div>
+      </section>
+
+      <section id="extension" class="section extension-section">
+        <div class="extension-copy">
+          <p class="eyebrow dark">浏览器插件</p>
+          <h2>联动浏览器插件，自动捕获下载请求</h2>
+        </div>
+        <div class="extension-frame glow-follow">
+          <img src="images/bowser-ex-screenshoot.png" alt="浏览器插件设置" class="extension-shot">
+        </div>
+      </section>
+
+      <section id="install" class="section install">
+        <h2>安装方式</h2>
+        <div class="steps">
+          <div class="glow-follow"><b>1</b><p>先安装并打开 NYPD。</p></div>
+          <div class="glow-follow"><b>2</b><p>按软件里的提示，把浏览器插件加载进去。</p></div>
+          <div class="glow-follow"><b>3</b><p>回到 Nexus Mods 正常点击下载，大文件会自己出现在 NYPD 里。</p></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>© 幼稚园园长</span>
+      <a href="https://www.nexusmods.com/profile/yzyyz1384/mods" target="_blank" rel="noopener">N网主页</a>
+      <a href="https://github.com/yzyyz1387/NYPD" target="_blank" rel="noopener">项目仓库</a>
+    </footer>
+
+    <script>
+      fetch("latest.json", { cache: "no-store" })
+        .then(response => response.ok ? response.json() : null)
+        .then(data => {
+          if (!data) return;
+          document.querySelector("#version").textContent = `最新版本：${data.version} · ${data.releaseDate}`;
+        })
+        .catch(() => {
+          document.querySelector("#version").textContent = "最新版本信息暂不可用";
+        });
+
+      document.querySelectorAll(".glow-follow").forEach(element => {
+        element.addEventListener("pointermove", event => {
+          const rect = element.getBoundingClientRect();
+          element.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+          element.style.setProperty("--my", `${event.clientY - rect.top}px`);
+        });
+      });
+    </script>
+  </body>
+</html>

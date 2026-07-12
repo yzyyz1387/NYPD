@@ -14,9 +14,14 @@
       </header>
       <section class="card">
         <div class="row"><div><strong>自动接管下载</strong><span>将 Nexus 手动下载交给桌面程序</span></div><label class="switch"><input id="enabled" type="checkbox"><i></i></label></div>
+        <div class="setting">
+          <label for="minMb">接管文件大小</label>
+          <div class="number"><input id="minMb" type="number" min="0" step="1"><span>MB 以上</span></div>
+        </div>
       </section>
       <section class="status"><span id="dot"></span><span id="connection">正在检查桌面程序…</span></section>
-      <footer>v0.2.0 <span>·</span> 设置和关于信息即将加入</footer>
+      <a class="home" href="https://n.yzyyz.top/" target="_blank" rel="noopener">访问主页</a>
+      <footer>v1.0.0</footer>
     </main>
     <script src="popup.js"></script>
   </body>

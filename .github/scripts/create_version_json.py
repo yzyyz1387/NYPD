@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 from datetime import datetime
 
 import requests
@@ -70,7 +71,10 @@ def main():
 
     github_url = github_asset_url(owner, repo, tag, token)
     gitee_url = f"https://gitee.com/yzyyz1387/NYPD/releases/download/{tag}/NYPD-{tag}.zip"
-    os.makedirs("dist", exist_ok=True)
+    if os.path.isdir(".github/pages"):
+        shutil.copytree(".github/pages", "dist", dirs_exist_ok=True)
+    else:
+        os.makedirs("dist", exist_ok=True)
     with open("dist/latest.json", "w", encoding="utf-8") as file:
         json.dump(
             {

@@ -10,6 +10,7 @@ public partial class ConfirmWindow : Window
     private ConfirmWindow(string title, string message, string confirmText, string? optionText)
     {
         InitializeComponent();
+        WindowTheme.Apply(this);
         TitleTextBlock.Text = title;
         MessageTextBlock.Text = message;
         ConfirmButton.Content = confirmText;

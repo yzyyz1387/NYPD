@@ -35,14 +35,22 @@ public partial class MainWindow : Window
     };
     private readonly string _pipeName;
     private readonly JsonSerializerOptions _json;
+    private readonly System.Windows.Threading.DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
     private bool _processing;
     private bool _multiSelectMode;
+    private bool _loadingSettings = true;
+    private bool _settingsDialogOpen;
 
     public MainWindow(string pipeName, JsonSerializerOptions json)
     {
         InitializeComponent();
         _pipeName = pipeName;
         _json = json;
+        _settingsSaveTimer.Tick += (_, _) =>
+        {
+            _settingsSaveTimer.Stop();
+            if (!_loadingSettings) TrySaveSettings(false);
+        };
 
         DownloadsGrid.ItemsSource = _tasks;
         HistoryGrid.ItemsSource = _history;
@@ -55,11 +63,13 @@ public partial class MainWindow : Window
         UpdateBulkPauseButton();
 
         global::AppData.Logged += AppendLog;
+        global::AppData.LogStartupSeparator();
         Loaded += (_, _) =>
         {
             _ = ListenAsync();
             _ = global::UpdateChecker.CheckAsync();
             Dispatcher.BeginInvoke(new Action(PromptBrowserExtensionInstallIfNeeded));
+            ScrollLogToEnd();
         };
         Closed += (_, _) =>
         {
@@ -135,8 +145,9 @@ public partial class MainWindow : Window
                     if (value.Total is long total && total > 0)
                     {
                         var percent = Math.Min(100, value.Received * 100d / total);
+                        var received = Math.Min(value.Received, total);
                         task.ProgressPercent = percent;
-                        task.Progress = $"{FormatBytes(value.Received)} / {FormatBytes(total)} ({percent:F1}%)";
+                        task.Progress = $"{FormatBytes(received)} / {FormatBytes(total)} ({percent:F1}%)";
                     }
                     else
                     {
@@ -488,34 +499,103 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(selected)) DefaultDirectoryTextBox.Text = selected;
     }
 
-    private void SaveSettings_Click(object sender, RoutedEventArgs e)
+    private void SettingsTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (!int.TryParse(ProxyPortTextBox.Text.Trim(), out var port) || port is < 1 or > 65535)
+        if (_loadingSettings) return;
+        _settingsSaveTimer.Stop();
+        _settingsSaveTimer.Start();
+    }
+
+    private void SettingsField_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings) return;
+        _settingsSaveTimer.Stop();
+        TrySaveSettings(true);
+    }
+
+    private void SettingsField_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings) return;
+        _settingsSaveTimer.Stop();
+        TrySaveSettings(true);
+    }
+
+    private bool TrySaveSettings(bool showAlert)
+    {
+        var portValid = int.TryParse(ProxyPortTextBox.Text.Trim(), out var port) && port is >= 1 and <= 65535;
+        var segmentValid = int.TryParse(SegmentCountTextBox.Text.Trim(), out var segmentCount) && segmentCount is >= 1 and <= 128;
+        MarkSettingInvalid(ProxyPortTextBox, !portValid);
+        MarkSettingInvalid(SegmentCountTextBox, !segmentValid);
+
+        if (!portValid || !segmentValid)
         {
-            ConfirmWindow.Ask(this, "设置无效", "代理端口需要是 1 到 65535 之间的数字。", "知道了");
-            return;
-        }
-        if (!int.TryParse(SegmentCountTextBox.Text.Trim(), out var segmentCount) || segmentCount is < 1 or > 128)
-        {
-            ConfirmWindow.Ask(this, "设置无效", "下载分片数需要是 1 到 128 之间的数字。", "知道了");
-            return;
+            if (showAlert && !_settingsDialogOpen)
+            {
+                _settingsDialogOpen = true;
+                var message = string.Join("\n", new[]
+                {
+                    portValid ? "" : "代理端口需要是 1 到 65535 之间的数字。",
+                    segmentValid ? "" : "下载分片数需要是 1 到 128 之间的数字。"
+                }.Where(item => item.Length > 0));
+                ConfirmWindow.Ask(this, "设置无效", message, "知道了");
+                _settingsDialogOpen = false;
+            }
+            return false;
         }
 
-        global::AppData.Settings.DownloadDirectory = string.IsNullOrWhiteSpace(DefaultDirectoryTextBox.Text)
+        var directory = string.IsNullOrWhiteSpace(DefaultDirectoryTextBox.Text)
             ? global::Downloader.GetDownloadDirectory()
             : DefaultDirectoryTextBox.Text.Trim();
-        global::AppData.Settings.AskBeforeDownload = AskBeforeCheckBox.IsChecked == true;
-        global::AppData.Settings.UseProxy = UseProxyCheckBox.IsChecked == true;
-        global::AppData.Settings.ProxyHost = string.IsNullOrWhiteSpace(ProxyHostTextBox.Text) ? "127.0.0.1" : ProxyHostTextBox.Text.Trim();
-        global::AppData.Settings.ProxyPort = port;
-        global::AppData.Settings.SegmentCount = segmentCount;
-        global::AppData.Settings.HomepageUrl = HomepageTextBox.Text.Trim();
+        var askBeforeDownload = AskBeforeCheckBox.IsChecked == true;
+        var useProxy = UseProxyCheckBox.IsChecked == true;
+        var proxyHost = string.IsNullOrWhiteSpace(ProxyHostTextBox.Text) ? "127.0.0.1" : ProxyHostTextBox.Text.Trim();
+        var settings = global::AppData.Settings;
+        var changes = new List<string>();
+        AddChange("下载目录", settings.DownloadDirectory, directory);
+        AddChange("下载前确认窗口", BoolText(settings.AskBeforeDownload), BoolText(askBeforeDownload));
+        AddChange("代理下载", BoolText(settings.UseProxy), BoolText(useProxy));
+        AddChange("代理地址", settings.ProxyHost, proxyHost);
+        AddChange("代理端口", settings.ProxyPort.ToString(), port.ToString());
+        AddChange("下载分片数", settings.SegmentCount.ToString(), segmentCount.ToString());
+        if (settings.DownloadDirectory == directory
+            && settings.AskBeforeDownload == askBeforeDownload
+            && settings.UseProxy == useProxy
+            && settings.ProxyHost == proxyHost
+            && settings.ProxyPort == port
+            && settings.SegmentCount == segmentCount)
+            return true;
+
+        settings.DownloadDirectory = directory;
+        settings.AskBeforeDownload = askBeforeDownload;
+        settings.UseProxy = useProxy;
+        settings.ProxyHost = proxyHost;
+        settings.ProxyPort = port;
+        settings.SegmentCount = segmentCount;
         global::AppData.SaveSettings();
         _downloader = new global::Downloader();
         RefreshAboutText();
-        var savedDirectory = global::AppData.Settings.DownloadDirectory;
-        global::AppData.Log($"设置已保存，下载目录：{savedDirectory}");
-        ConfirmWindow.Ask(this, "设置", "设置已保存。新下载任务会使用新的代理配置。", "确定");
+        global::AppData.Log($"设置已变更：{string.Join("；", changes)}", global::AppLogLevel.System);
+        return true;
+
+        void AddChange(string name, string oldValue, string newValue)
+        {
+            if (oldValue != newValue) changes.Add($"{name}：{DisplayValue(oldValue)} -> {DisplayValue(newValue)}");
+        }
+    }
+
+    private static string BoolText(bool value) => value ? "开启" : "关闭";
+    private static string DisplayValue(string value) => string.IsNullOrWhiteSpace(value) ? "空" : value;
+
+    private static void MarkSettingInvalid(System.Windows.Controls.TextBox textBox, bool invalid)
+    {
+        if (invalid)
+        {
+            textBox.BorderBrush = System.Windows.Media.Brushes.IndianRed;
+            textBox.Foreground = System.Windows.Media.Brushes.IndianRed;
+            return;
+        }
+        textBox.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
+        textBox.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
     }
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await CheckUpdateInteractiveAsync();
@@ -565,11 +645,7 @@ public partial class MainWindow : Window
         global::AppData.Log("已清理历史日志", global::AppLogLevel.System);
     }
 
-    private void OpenHomepage_Click(object sender, RoutedEventArgs e)
-    {
-        if (Uri.TryCreate(global::AppData.Settings.HomepageUrl, UriKind.Absolute, out var url))
-            OpenPath(url.ToString());
-    }
+    private void OpenOfficialSite_Click(object sender, RoutedEventArgs e) => OpenPath("https://n.yzyyz.top/");
 
     private void InstallBrowserExtension_Click(object sender, RoutedEventArgs e) => InstallBrowserExtension();
 
@@ -631,13 +707,20 @@ public partial class MainWindow : Window
 
     private void LoadSettings()
     {
-        DefaultDirectoryTextBox.Text = global::AppData.Settings.DownloadDirectory;
-        AskBeforeCheckBox.IsChecked = global::AppData.Settings.AskBeforeDownload;
-        UseProxyCheckBox.IsChecked = global::AppData.Settings.UseProxy;
-        ProxyHostTextBox.Text = string.IsNullOrWhiteSpace(global::AppData.Settings.ProxyHost) ? "127.0.0.1" : global::AppData.Settings.ProxyHost;
-        ProxyPortTextBox.Text = global::AppData.Settings.ProxyPort.ToString();
-        SegmentCountTextBox.Text = global::AppData.Settings.SegmentCount.ToString();
-        HomepageTextBox.Text = global::AppData.Settings.HomepageUrl;
+        _loadingSettings = true;
+        try
+        {
+            DefaultDirectoryTextBox.Text = global::AppData.Settings.DownloadDirectory;
+            AskBeforeCheckBox.IsChecked = global::AppData.Settings.AskBeforeDownload;
+            UseProxyCheckBox.IsChecked = global::AppData.Settings.UseProxy;
+            ProxyHostTextBox.Text = string.IsNullOrWhiteSpace(global::AppData.Settings.ProxyHost) ? "127.0.0.1" : global::AppData.Settings.ProxyHost;
+            ProxyPortTextBox.Text = global::AppData.Settings.ProxyPort.ToString();
+            SegmentCountTextBox.Text = global::AppData.Settings.SegmentCount.ToString();
+        }
+        finally
+        {
+            _loadingSettings = false;
+        }
     }
 
     private void RefreshAboutText()
@@ -653,7 +736,7 @@ public partial class MainWindow : Window
             return;
         }
         AddLogLine(line);
-        LogTextBox.ScrollToEnd();
+        ScrollLogToEnd();
     }
 
     private void LoadLogText(string text)
@@ -661,12 +744,21 @@ public partial class MainWindow : Window
         LogTextBox.Document.Blocks.Clear();
         foreach (var line in text.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries))
             AddLogLine(line);
-        LogTextBox.ScrollToEnd();
+        ScrollLogToEnd();
     }
 
     private void AddLogLine(string line)
     {
         var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 3) };
+        if (line.StartsWith("-----此次启动", StringComparison.Ordinal))
+        {
+            paragraph.TextAlignment = TextAlignment.Center;
+            paragraph.Margin = new Thickness(0, 8, 0, 8);
+            paragraph.Inlines.Add(new Run(line) { Foreground = System.Windows.Media.Brushes.DodgerBlue, FontWeight = FontWeights.SemiBold });
+            LogTextBox.Document.Blocks.Add(paragraph);
+            return;
+        }
+
         var brush = LogBrush(line);
         var offset = 0;
         foreach (Match match in WindowsPathRegex().Matches(line))
@@ -676,7 +768,8 @@ public partial class MainWindow : Window
 
             var path = match.Value.TrimEnd('。', '.', ',', '，', ';', '；');
             var link = new Hyperlink(new Run(path)) { Tag = path, Foreground = brush };
-            link.Click += LogPath_Click;
+            link.ToolTip = "按住 Ctrl 点击打开目录";
+            link.PreviewMouseLeftButtonUp += LogPath_MouseLeftButtonUp;
             paragraph.Inlines.Add(link);
             offset = match.Index + match.Length;
         }
@@ -685,10 +778,37 @@ public partial class MainWindow : Window
         LogTextBox.Document.Blocks.Add(paragraph);
     }
 
-    private void LogPath_Click(object sender, RoutedEventArgs e)
+    private void LogPath_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Hyperlink { Tag: string path }) OpenDirectoryForPath(path);
+        e.Handled = true;
+        if (IsCtrlDown() && sender is Hyperlink { Tag: string path })
+            OpenDirectoryForPath(path);
     }
+
+    private void LogTextBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!IsCtrlDown()) return;
+        var pointer = LogTextBox.GetPositionFromPoint(e.GetPosition(LogTextBox), true);
+        var link = FindParentHyperlink(pointer?.Parent as DependencyObject);
+        if (link?.Tag is not string path) return;
+        e.Handled = true;
+        OpenDirectoryForPath(path);
+    }
+
+    private static bool IsCtrlDown() => Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+
+    private static Hyperlink? FindParentHyperlink(DependencyObject? current)
+    {
+        while (current is not null)
+        {
+            if (current is Hyperlink link) return link;
+            current = LogicalTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+
+    private void ScrollLogToEnd() =>
+        Dispatcher.BeginInvoke(new Action(() => LogTextBox.ScrollToEnd()), System.Windows.Threading.DispatcherPriority.ContextIdle);
 
     private static System.Windows.Media.Brush LogBrush(string line)
     {
@@ -740,6 +860,7 @@ public partial class MainWindow : Window
         LogsPage.Visibility = page == "Logs" ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
         AboutPage.Visibility = page == "About" ? Visibility.Visible : Visibility.Collapsed;
+        if (page == "Logs") ScrollLogToEnd();
     }
 
     private void ThemeButton_Click(object sender, RoutedEventArgs e)
@@ -761,8 +882,7 @@ public partial class MainWindow : Window
 
     private void ApplyTheme(string color, string darkColor)
     {
-        Resources["PrimaryHueMidBrush"] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color)!);
-        Resources["PrimaryHueDarkBrush"] = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(darkColor)!);
+        WindowTheme.Apply(this, color, darkColor);
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
