@@ -18,9 +18,21 @@ if (args is ["--self-check"])
     return;
 }
 
+if (args.Length == 0)
+{
+    if (!await NativeHost.RunAsync()) DownloadManager.Run(null);
+    return;
+}
+
 if (args is ["--show"])
 {
     DownloadManager.Run(null);
+    return;
+}
+
+if (args is ["--native-host"])
+{
+    await NativeHost.RunAsync();
     return;
 }
 
@@ -565,10 +577,12 @@ static class NativeHost
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, PropertyNameCaseInsensitive = true };
 
-    public static async Task RunAsync()
+    public static async Task<bool> RunAsync()
     {
+        var handled = false;
         while (await ReadAsync(Console.OpenStandardInput()) is { } message)
         {
+            handled = true;
             try
             {
                 if (message.Type == "ping")
@@ -585,6 +599,7 @@ static class NativeHost
                 await WriteAsync(new NativeResponse(false, error.Message));
             }
         }
+        return handled;
     }
 
     private static void StartWorker(DirectDownload download)
@@ -592,7 +607,7 @@ static class NativeHost
         var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate the downloader executable.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
         if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
-            start.ArgumentList.Add(typeof(NativeHost).Assembly.Location);
+            start.ArgumentList.Add(Environment.GetCommandLineArgs()[0]);
         start.ArgumentList.Add("--download");
         start.ArgumentList.Add(download.Url.OriginalString);
         if (download.Referrer is not null) start.ArgumentList.Add(download.Referrer.OriginalString);
