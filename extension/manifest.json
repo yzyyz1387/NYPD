@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "N网下载器-NYPD",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmOCrGfSJQ5M7nr25nlnA7OFdsYY25FAb7X1yKXKHJcxZ667ye84yILnJeKf9nefYAeri5iDJyI+omn06ABkTK8BiVlhIlB/8H24QwyKq2/oMy7YsRqVEWOp19nZ0Is8FUXy9PXaOpKK8FyPcPQ9BhC5CO0WQ4nwgECjXNcELbe1HLrcvJJzmy9PSegiB1yGuwZOPsVK5FKBMvE8IA73dwT2DFF14Cp50h33c8Tslq7NpAXlw7ddFXPEgxflUsWKsyjW5fWDM0J+AcWLeoWmcUWrkQFhNp4B6PoCNKah3xzDdUO7SUwF0BP+YFp2u2mTKc2n0boBcry+TZb5MuvDHgwIDAQAB",
   "description": "《N网下载器-NYPD》的附属插件，安装后会自动识别n网下载请求并启动下载器。",
   "permissions": ["downloads", "nativeMessaging", "storage"],
