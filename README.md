@@ -22,4 +22,4 @@ dotnet build .\native
 
 ## 发布更新
 
-创建 GitHub Release，例如 `v1.0.3`。工作流会构建发布包、同步到 Gitee Release，并生成 `latest.json` 供软件检查更新使用。
+创建 GitHub Release，例如 `v1.0.4`。工作流会构建发布包、同步到 Gitee Release，并生成 `latest.json` 供软件检查更新使用。

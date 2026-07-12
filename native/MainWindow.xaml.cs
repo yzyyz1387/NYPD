@@ -67,8 +67,11 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             _ = ListenAsync();
-            _ = global::UpdateChecker.CheckAsync();
-            Dispatcher.BeginInvoke(new Action(PromptBrowserExtensionInstallIfNeeded));
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                await CheckUpdateInteractiveAsync(true);
+                PromptBrowserExtensionInstallIfNeeded();
+            }));
             ScrollLogToEnd();
         };
         Closed += (_, _) =>
@@ -598,11 +601,11 @@ public partial class MainWindow : Window
         textBox.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
     }
 
-    private async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await CheckUpdateInteractiveAsync();
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e) => await CheckUpdateInteractiveAsync(false);
 
-    private async void CheckUpdatePlaceholder_Click(object sender, RoutedEventArgs e) => await CheckUpdateInteractiveAsync();
+    private async void CheckUpdatePlaceholder_Click(object sender, RoutedEventArgs e) => await CheckUpdateInteractiveAsync(false);
 
-    private async Task CheckUpdateInteractiveAsync()
+    private async Task CheckUpdateInteractiveAsync(bool startup)
     {
         try
         {
@@ -610,10 +613,16 @@ public partial class MainWindow : Window
             var info = await global::UpdateChecker.CheckForUpdatesAsync();
             if (!global::UpdateChecker.IsNewVersionAvailable(global::UpdateChecker.CurrentVersion, info.Version))
             {
-                ConfirmWindow.Ask(this, "检查更新", "当前已是最新版本。", "知道了");
+                if (!startup) ConfirmWindow.Ask(this, "检查更新", "当前已是最新版本。", "知道了");
+                return;
+            }
+            if (startup && info.Version == global::AppData.Settings.IgnoredUpdateVersion)
+            {
+                global::AppData.Log($"已忽略版本 {info.Version}", global::AppLogLevel.System);
                 return;
             }
 
+            if (startup) BringToFront();
             var changelog = info.Changelog.Length == 0 ? "暂无更新说明" : string.Join(Environment.NewLine, info.Changelog.Select(item => "• " + item));
             var result = ConfirmWindow.Ask(
                 this,
@@ -622,7 +631,7 @@ public partial class MainWindow : Window
                 "下载并更新");
             if (!result.Confirmed) return;
 
-            var script = await global::UpdateChecker.DownloadAndPrepareUpdateAsync(info);
+            var script = await DownloadUpdateWithProgressAsync(info);
             var restart = ConfirmWindow.Ask(this, "更新准备就绪", "更新文件已准备就绪，需要重启软件完成覆盖。是否立即重启？", "立即重启");
             if (!restart.Confirmed) return;
 
@@ -632,7 +641,22 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             global::AppData.Log($"检查更新失败: {ex.Message}", global::AppLogLevel.Error);
-            ConfirmWindow.Ask(this, "检查更新失败", ex.Message, "知道了");
+            if (!startup) ConfirmWindow.Ask(this, "检查更新失败", ex.Message, "知道了");
+        }
+    }
+
+    private async Task<string> DownloadUpdateWithProgressAsync(global::UpdateInfo info)
+    {
+        var progressWindow = new UpdateProgressWindow(info.Version) { Owner = this };
+        var progress = new Progress<double>(progressWindow.SetProgress);
+        progressWindow.Show();
+        try
+        {
+            return await global::UpdateChecker.DownloadAndPrepareUpdateAsync(info, progress);
+        }
+        finally
+        {
+            progressWindow.Close();
         }
     }
 

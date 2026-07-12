@@ -201,6 +201,7 @@ static class UpdateChecker
         await using var output = File.Create(destination);
         var buffer = new byte[1024 * 128];
         long received = 0;
+        progress?.Report(0);
         int count;
         while ((count = await input.ReadAsync(buffer)) > 0)
         {
@@ -208,6 +209,7 @@ static class UpdateChecker
             received += count;
             if (total is > 0) progress?.Report((double)received / total.Value);
         }
+        progress?.Report(1);
     }
 
     private static void VerifySha256(string path, string expected)
