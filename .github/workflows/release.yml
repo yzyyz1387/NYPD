@@ -52,17 +52,27 @@ jobs:
           path: .
 
       - name: Configure Git for Gitee
+        env:
+          GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.GITEE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan gitee.com >> ~/.ssh/known_hosts
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cat > /tmp/gitee-askpass.sh <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) echo "yzyyz1387" ;;
+            *Password*) echo "$GITEE_ACCESS_TOKEN" ;;
+          esac
+          EOF
+          chmod +x /tmp/gitee-askpass.sh
 
       - name: Push code and tags to Gitee
+        env:
+          GIT_ASKPASS: /tmp/gitee-askpass.sh
+          GIT_TERMINAL_PROMPT: 0
+          GITEE_ACCESS_TOKEN: ${{ secrets.GITEE_ACCESS_TOKEN }}
         run: |
-          git remote add gitee git@gitee.com:yzyyz1387/NYPD.git
+          git remote add gitee https://gitee.com/yzyyz1387/NYPD.git
           git fetch --unshallow || true
           git push -f gitee --all
           git push -f gitee --tags
@@ -97,7 +107,7 @@ jobs:
             "https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases/$RELEASE_ID/attach_files"
 
   update-version:
-    needs: [build, sync-to-gitee]
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
