@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - ".github/pages/**"
+      - ".github/scripts/create_version_json.py"
       - ".github/workflows/pages.yml"
+      - "version.md"
   workflow_dispatch:
 
 permissions:
@@ -26,8 +28,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
       - name: Prepare pages
-        run: cp -r .github/pages dist
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          VERSION=$(python - <<'PY'
+          import re
+          with open("version.md", encoding="utf-8") as file:
+              print(re.search(r"^##\s+(.+)$", file.read(), re.M).group(1).strip())
+          PY
+          )
+          RELEASE_TAG="v$VERSION" python .github/scripts/create_version_json.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
 
       - uses: actions/configure-pages@v4
 
