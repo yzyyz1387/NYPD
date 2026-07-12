@@ -81,17 +81,17 @@ public partial class MainWindow : Window
         };
     }
 
-    internal void Enqueue(global::DirectDownload download)
+    internal async Task EnqueueAsync(global::DirectDownload download)
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.Invoke(() => Enqueue(download));
+            await Dispatcher.InvokeAsync(async () => await EnqueueAsync(download));
             return;
         }
 
         BringToFront();
 
-        var initialName = global::FileName.Safe(Path.GetFileName(download.Url.AbsolutePath), "nexus-download.bin");
+        var initialName = await GuessFileNameAsync(download);
         var directory = global::AppData.Settings.DownloadDirectory;
         var nameOverride = "";
 
@@ -127,6 +127,34 @@ public partial class MainWindow : Window
         global::AppData.Log($"已加入队列: {task.Name}");
         UpdateBulkPauseButton();
         if (!_processing) _ = ProcessQueueAsync();
+    }
+
+    private async Task<string> GuessFileNameAsync(global::DirectDownload download)
+    {
+        var suggested = global::FileName.Safe(download.SuggestedFileName, "");
+        if (!string.IsNullOrWhiteSpace(suggested) && Path.HasExtension(suggested)) return suggested;
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, download.Url);
+            request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+            request.Headers.UserAgent.ParseAdd("NexusModsDownloader/0.4");
+            if (download.Referrer is not null) request.Headers.Referrer = download.Referrer;
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (response.IsSuccessStatusCode)
+            {
+                var headerName = response.Content.Headers.ContentDisposition?.FileNameStar ?? response.Content.Headers.ContentDisposition?.FileName;
+                var name = global::FileName.Safe(headerName, "");
+                if (!string.IsNullOrWhiteSpace(name)) return name;
+            }
+        }
+        catch (Exception error)
+        {
+            global::AppData.Log($"读取下载文件名失败: {error.Message}", global::AppLogLevel.Warning);
+        }
+
+        return global::FileName.Safe(suggested, global::FileName.Safe(Path.GetFileName(download.Url.AbsolutePath), "nexus-download.bin"));
     }
 
     private async Task ProcessQueueAsync()
@@ -259,18 +287,18 @@ public partial class MainWindow : Window
     {
         if (e.Key != Key.Enter) return;
         e.Handled = true;
-        StartManualDownload();
+        _ = StartManualDownloadAsync();
     }
 
-    private void ManualDownload_Click(object sender, RoutedEventArgs e) => StartManualDownload();
+    private async void ManualDownload_Click(object sender, RoutedEventArgs e) => await StartManualDownloadAsync();
 
-    private void StartManualDownload()
+    private async Task StartManualDownloadAsync()
     {
         try
         {
             var download = global::DirectDownload.Parse(ManualUrlTextBox.Text.Trim());
             ManualUrlTextBox.Clear();
-            Enqueue(download);
+            await EnqueueAsync(download);
         }
         catch (Exception ex)
         {
@@ -858,8 +886,8 @@ public partial class MainWindow : Window
                 var line = await reader.ReadLineAsync(_pipeCancellation.Token);
                 var message = line is null ? null : JsonSerializer.Deserialize<global::DownloadManager.QueueMessage>(line, _json);
                 if (message is null) continue;
-                var download = global::DirectDownload.Parse(message.DownloadUrl, message.Referrer);
-                Dispatcher.Invoke(() => Enqueue(download));
+                var download = global::DirectDownload.Parse(message.DownloadUrl, message.Referrer, message.Filename);
+                await Dispatcher.InvokeAsync(async () => await EnqueueAsync(download));
             }
             catch (OperationCanceledException)
             {

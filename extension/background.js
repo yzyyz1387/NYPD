@@ -48,12 +48,15 @@ chrome.downloads.onCreated.addListener(async download => {
   const minMb = Number.isFinite(parsedMinMb) && parsedMinMb >= 0 ? parsedMinMb : defaultInterceptMinMb;
   const minBytes = minMb * 1024 * 1024;
   if (size !== null && size < minBytes) return;
+  const [current] = await chrome.downloads.search({ id: download.id });
+  const filename = (current?.filename || download.filename || "").split(/[\\/]/).pop();
 
   try {
     const result = await chrome.runtime.sendNativeMessage(host, {
       type: "download",
       downloadUrl: download.finalUrl,
-      referrer: download.referrer
+      referrer: download.referrer,
+      filename
     });
     if (result?.ok) await chrome.downloads.cancel(download.id);
     else console.error("N网下载器-NYPD:", result?.error ?? "queue failed");

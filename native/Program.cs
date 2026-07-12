@@ -36,9 +36,9 @@ if (args is ["--native-host"])
     return;
 }
 
-if (args.Length is 2 or 3 && args[0] == "--download")
+if (args.Length is >= 2 and <= 4 && args[0] == "--download")
 {
-    DownloadManager.Run(DirectDownload.Parse(args[1], args.ElementAtOrDefault(2)));
+    DownloadManager.Run(DirectDownload.Parse(args[1], args.ElementAtOrDefault(2), args.ElementAtOrDefault(3)));
     return;
 }
 
@@ -48,12 +48,14 @@ static void SelfCheck()
 {
     var download = DirectDownload.Parse("https://files.nexus-cdn.com/mods/1704/file.zip?token=temporary", "https://www.nexusmods.com/skyrimspecialedition");
     Assert(download.Url.Host == "files.nexus-cdn.com" && download.Referrer is not null);
+    Assert(DirectDownload.Parse("https://files.nexus-cdn.com/mods/1704/uuid", null, @"C:\Downloads\real file.rar").SuggestedFileName == "real file.rar");
     Assert(Rejects("https://nexusmods.com.evil.example/file.zip"));
     Assert(FileName.Safe("../bad:name?.zip", "fallback.bin") == "bad_name_.zip");
     var segments = RangeSegment.Create(10, 4);
     Assert(segments.Count == 4 && segments[0] == new RangeSegment(0, 1) && segments[3] == new RangeSegment(7, 9));
     Assert(!Downloader.ShouldUseSegments(5 * 1024 * 1024 - 1, true, 1));
     Assert(Downloader.ShouldUseSegments(64L * 1024 * 1024, true, 64));
+    Downloader.SelfCheckAsync().GetAwaiter().GetResult();
     Console.WriteLine("self-check passed");
 }
 
@@ -68,9 +70,9 @@ static void Assert(bool condition)
     if (!condition) throw new InvalidOperationException("self-check failed");
 }
 
-sealed record DirectDownload(Uri Url, Uri? Referrer)
+sealed record DirectDownload(Uri Url, Uri? Referrer, string? SuggestedFileName = null)
 {
-    public static DirectDownload Parse(string value, string? referrer = null)
+    public static DirectDownload Parse(string value, string? referrer = null, string? suggestedFileName = null)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps || !IsNexusHost(url.Host))
             throw new ArgumentException("Expected an HTTPS Nexus download URL.");
@@ -78,7 +80,7 @@ sealed record DirectDownload(Uri Url, Uri? Referrer)
         var source = Uri.TryCreate(referrer, UriKind.Absolute, out var candidate) && candidate.Scheme == Uri.UriSchemeHttps && IsNexusHost(candidate.Host)
             ? candidate
             : null;
-        return new DirectDownload(url, source);
+        return new DirectDownload(url, source, FileName.Safe(suggestedFileName, ""));
     }
 
     private static bool IsNexusHost(string host) =>
@@ -135,6 +137,18 @@ sealed class Downloader
         return bytes >= Math.Clamp(segmentCount, 1, 128) * MinSegmentBytes;
     }
 
+    public static async Task SelfCheckAsync()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "NYPD-self-check.part");
+        await File.WriteAllBytesAsync(temp, [1, 2, 3, 4, 5]);
+        if (ExistingLength(temp, 3) != 3 || new FileInfo(temp).Length != 3) throw new InvalidOperationException("self-check failed");
+        await using var input = new MemoryStream([1, 2, 3, 4, 5]);
+        await using var output = new MemoryStream();
+        await CopyAsync(input, output, new ProgressReporter("test", 3, 0, null), CancellationToken.None, 3);
+        if (output.Length != 3) throw new InvalidOperationException("self-check failed");
+        File.Delete(temp);
+    }
+
     private async Task<DownloadMetadata> ProbeAsync(DirectDownload download, CancellationToken cancellationToken)
     {
         using var request = CreateRequest(download);
@@ -142,7 +156,9 @@ sealed class Downloader
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         ThrowIfExpired(response);
         response.EnsureSuccessStatusCode();
-        var fallback = Path.GetFileName(download.Url.AbsolutePath);
+        var fallback = string.IsNullOrWhiteSpace(download.SuggestedFileName)
+            ? Path.GetFileName(download.Url.AbsolutePath)
+            : download.SuggestedFileName;
         if (string.IsNullOrWhiteSpace(fallback)) fallback = "nexus-download.bin";
         var name = FileName.Safe(response.Content.Headers.ContentDisposition?.FileNameStar ?? response.Content.Headers.ContentDisposition?.FileName, fallback);
         var total = response.Content.Headers.ContentRange?.Length;
@@ -157,6 +173,17 @@ sealed class Downloader
         while (true)
         {
             var offset = File.Exists(paths.PartPath) ? new FileInfo(paths.PartPath).Length : 0;
+            if (metadata.Total is long knownTotal)
+            {
+                if (offset > knownTotal)
+                {
+                    await using var part = new FileStream(paths.PartPath, FileMode.Open, FileAccess.Write, FileShare.None, 1, useAsync: true);
+                    part.SetLength(knownTotal);
+                    offset = knownTotal;
+                }
+                if (offset == knownTotal)
+                    return Finish(paths.PartPath, paths.Directory, nameOverride ?? metadata.Name);
+            }
             using var request = CreateRequest(download);
             if (offset > 0) request.Headers.Range = new RangeHeaderValue(offset, null);
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -177,7 +204,7 @@ sealed class Downloader
             var reporter = new ProgressReporter(metadata.Name, total, offset, progress);
             await using var output = new FileStream(paths.PartPath, offset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
             await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await CopyAsync(input, output, reporter, cancellationToken);
+                await CopyAsync(input, output, reporter, cancellationToken, total is long expectedTotal ? expectedTotal - offset : null);
             if (total is long expected && new FileInfo(paths.PartPath).Length != expected)
                 throw new IOException("Download ended before the expected file size was reached.");
             reporter.Complete();
@@ -264,8 +291,9 @@ sealed class Downloader
         if (!File.Exists(path)) return 0;
         var length = new FileInfo(path).Length;
         if (length <= maximum) return length;
-        File.Delete(path);
-        return 0;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
+        stream.SetLength(maximum);
+        return maximum;
     }
 
     private static void EnsureDiskSpace(DownloadPaths paths, long total, bool rangeDownload)
@@ -291,13 +319,14 @@ sealed class Downloader
         var buffer = GC.AllocateUninitializedArray<byte>(1024 * 128);
         long written = 0;
         int count;
-        while ((count = await input.ReadAsync(buffer, cancellationToken)) > 0)
+        while (maximumBytes is null || written < maximumBytes.Value)
         {
-            var bytes = maximumBytes is long max ? (int)Math.Min(count, max - written) : count;
-            if (bytes <= 0) return;
-            await output.WriteAsync(buffer.AsMemory(0, bytes), cancellationToken);
-            reporter.Add(bytes);
-            written += bytes;
+            var readSize = maximumBytes is long max ? (int)Math.Min(buffer.Length, max - written) : buffer.Length;
+            count = await input.ReadAsync(buffer.AsMemory(0, readSize), cancellationToken);
+            if (count == 0) break;
+            await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+            reporter.Add(count);
+            written += count;
         }
     }
 
@@ -463,7 +492,7 @@ static class DownloadManager
             {
                 var app = new System.Windows.Application();
                 var window = new NexusModsDownloader.MainWindow(PipeName, Json);
-                if (initial is not null) window.Loaded += (_, _) => window.Enqueue(initial);
+                if (initial is not null) window.Loaded += async (_, _) => await window.EnqueueAsync(initial);
                 app.Run(window);
             }
             catch (Exception error)
@@ -479,7 +508,7 @@ static class DownloadManager
 
     private static void SendToRunningWindow(DirectDownload download)
     {
-        var message = JsonSerializer.Serialize(new QueueMessage(download.Url.OriginalString, download.Referrer?.OriginalString), Json);
+        var message = JsonSerializer.Serialize(new QueueMessage(download.Url.OriginalString, download.Referrer?.OriginalString, download.SuggestedFileName), Json);
         for (var attempt = 0; attempt < 20; attempt++)
         {
             try
@@ -499,7 +528,7 @@ static class DownloadManager
         throw new InvalidOperationException("The download manager did not become ready in time.");
     }
 
-    public sealed record QueueMessage(string DownloadUrl, string? Referrer);
+    public sealed record QueueMessage(string DownloadUrl, string? Referrer, string? Filename);
 }
 
 
@@ -591,7 +620,7 @@ static class NativeHost
                     continue;
                 }
                 if (message.Type != "download" || string.IsNullOrWhiteSpace(message.DownloadUrl)) throw new ArgumentException("Invalid native message.");
-                StartWorker(DirectDownload.Parse(message.DownloadUrl, message.Referrer));
+                StartWorker(DirectDownload.Parse(message.DownloadUrl, message.Referrer, message.Filename));
                 await WriteAsync(new NativeResponse(true, null));
             }
             catch (Exception error)
@@ -610,7 +639,9 @@ static class NativeHost
             start.ArgumentList.Add(Environment.GetCommandLineArgs()[0]);
         start.ArgumentList.Add("--download");
         start.ArgumentList.Add(download.Url.OriginalString);
-        if (download.Referrer is not null) start.ArgumentList.Add(download.Referrer.OriginalString);
+        if (download.Referrer is not null || download.SuggestedFileName is not null)
+            start.ArgumentList.Add(download.Referrer?.OriginalString ?? "");
+        if (download.SuggestedFileName is not null) start.ArgumentList.Add(download.SuggestedFileName);
         if (Process.Start(start) is null) throw new InvalidOperationException("Could not start the download manager.");
     }
 
@@ -646,6 +677,6 @@ static class NativeHost
         await output.FlushAsync();
     }
 
-    private sealed record NativeRequest(string Type, string DownloadUrl, string? Referrer);
+    private sealed record NativeRequest(string Type, string DownloadUrl, string? Referrer, string? Filename);
     private sealed record NativeResponse(bool Ok, string? Error);
 }
