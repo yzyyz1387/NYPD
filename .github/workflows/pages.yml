@@ -43,7 +43,7 @@ jobs:
               print(re.search(r"^##\s+(.+)$", file.read(), re.M).group(1).strip())
           PY
           )
-          RELEASE_TAG="v$VERSION" python .github/scripts/create_version_json.py || curl -fsSL https://n.yzyyz.top/latest.json -o dist/latest.json || true
+          RELEASE_TAG="v$VERSION" python .github/scripts/create_version_json.py || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_OWNER: ${{ github.repository_owner }}

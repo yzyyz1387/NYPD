@@ -1,15 +1,15 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.1",
   "releaseDate": "2026-07-12",
-  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.2/NYPD-v1.0.2.zip",
+  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.1/NYPD-v1.0.1.zip",
   "downloadUrls": {
-    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.2/NYPD-v1.0.2.zip",
-    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.2/NYPD-v1.0.2.zip"
+    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.1/NYPD-v1.0.1.zip",
+    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.1/NYPD-v1.0.1.zip"
   },
   "changelog": [
     "初始公开版本",
     "支持浏览器捕捉 N 网下载请求",
     "支持多分片下载、下载管理、日志和浏览器插件安装"
   ],
-  "sha256": "16b95b031ef537bc5780f0fa4656d39c061d5c1c7c081cd29ac637840e9cb95e"
+  "sha256": "855d1037ca11ac870c61c80fb4197eddd85ae52c8dbfacbe7ac535d419c10197"
 }
