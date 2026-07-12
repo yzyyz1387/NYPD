@@ -1,6 +1,6 @@
 $extensionId = 'deppclipjakbhemmkjblhkgepkglggbj'
 $publish = Join-Path $PSScriptRoot 'publish'
-dotnet publish (Join-Path $PSScriptRoot 'NexusModsDownloader.csproj') -c Release -r win-x64 --self-contained false -o $publish
+dotnet publish (Join-Path $PSScriptRoot 'NexusModsDownloader.csproj') -c Release -r win-x64 --self-contained true -o $publish
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed.' }
 
 $hostManifest = (Get-Content -Raw (Join-Path $PSScriptRoot 'native-host.template.json')).Replace('__EXTENSION_ID__', $extensionId).Replace('__EXECUTABLE_PATH__', (Join-Path $publish 'NYPD.exe').Replace('\', '\\'))
