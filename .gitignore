@@ -1,0 +1,15 @@
+bin/
+obj/
+publish/
+native/bin/
+native/obj/
+native/publish/
+native/native-host.json
+.vs/
+*.user
+*.suo
+*.tmp
+*.log
+*.crx
+*.pem
+*.psd

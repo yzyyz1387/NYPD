@@ -1,0 +1,130 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish
+        run: dotnet publish native/NexusModsDownloader.csproj -c Release -r win-x64 --self-contained true -o publish
+
+      - name: Create ZIP archive
+        run: |
+          cd publish
+          7z a -tzip -snc -scsUTF-8 ../NYPD-${{ github.event.release.tag_name }}.zip *
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: NYPD-${{ github.event.release.tag_name }}.zip
+
+      - name: Upload release asset as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset
+          path: NYPD-${{ github.event.release.tag_name }}.zip
+
+  sync-to-gitee:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-asset
+          path: .
+
+      - name: Configure Git for Gitee
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GITEE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan gitee.com >> ~/.ssh/known_hosts
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Push code and tags to Gitee
+        run: |
+          git remote add gitee git@gitee.com:yzyyz1387/NYPD.git
+          git fetch --unshallow || true
+          git push -f gitee --all
+          git push -f gitee --tags
+
+      - name: Create Gitee Release
+        run: |
+          RESPONSE=$(curl -s --header 'Content-Type: application/json' \
+            --header 'Accept: application/json' \
+            --data-binary "{
+              \"access_token\": \"${{ secrets.GITEE_ACCESS_TOKEN }}\",
+              \"tag_name\": \"${{ github.event.release.tag_name }}\",
+              \"name\": \"${{ github.event.release.name }}\",
+              \"body\": \"${{ github.event.release.body }}\",
+              \"prerelease\": ${{ github.event.release.prerelease }},
+              \"target_commitish\": \"main\"
+            }" \
+            --request POST \
+            https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases)
+          RELEASE_ID=$(echo "$RESPONSE" | jq -r '.id')
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            RELEASE_ID=$(curl -s "https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases/tags/${{ github.event.release.tag_name }}?access_token=${{ secrets.GITEE_ACCESS_TOKEN }}" | jq -r '.id')
+          fi
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then exit 1; fi
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
+
+      - name: Upload release asset to Gitee
+        run: |
+          curl -f -X POST \
+            -H "Accept: application/json" \
+            -F "access_token=${{ secrets.GITEE_ACCESS_TOKEN }}" \
+            -F "file=@NYPD-${{ github.event.release.tag_name }}.zip" \
+            "https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases/$RELEASE_ID/attach_files"
+
+  update-version:
+    needs: [build, sync-to-gitee]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Create latest.json
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+          python .github/scripts/create_version_json.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
