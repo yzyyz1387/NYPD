@@ -85,7 +85,7 @@ public partial class MainWindow : Window
     {
         if (!Dispatcher.CheckAccess())
         {
-            await Dispatcher.InvokeAsync(async () => await EnqueueAsync(download));
+            await await Dispatcher.InvokeAsync(() => EnqueueAsync(download));
             return;
         }
 
@@ -887,7 +887,7 @@ public partial class MainWindow : Window
                 var message = line is null ? null : JsonSerializer.Deserialize<global::DownloadManager.QueueMessage>(line, _json);
                 if (message is null) continue;
                 var download = global::DirectDownload.Parse(message.DownloadUrl, message.Referrer, message.Filename);
-                await Dispatcher.InvokeAsync(async () => await EnqueueAsync(download));
+                await await Dispatcher.InvokeAsync(() => EnqueueAsync(download));
             }
             catch (OperationCanceledException)
             {
