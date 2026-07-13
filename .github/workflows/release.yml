@@ -101,14 +101,16 @@ jobs:
 
       - name: Upload release asset to Gitee
         run: |
-          curl -f -X POST \
-            -H "Accept: application/json" \
-            -F "access_token=${{ secrets.GITEE_ACCESS_TOKEN }}" \
-            -F "file=@NYPD-${{ github.event.release.tag_name }}.zip" \
-            "https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases/$RELEASE_ID/attach_files"
+          if ! curl -f --connect-timeout 20 --max-time 300 --speed-time 60 --speed-limit 20480 -X POST \
+              -H "Accept: application/json" \
+              -F "access_token=${{ secrets.GITEE_ACCESS_TOKEN }}" \
+              -F "file=@NYPD-${{ github.event.release.tag_name }}.zip" \
+              "https://gitee.com/api/v5/repos/yzyyz1387/NYPD/releases/$RELEASE_ID/attach_files"; then
+            echo "::warning::Gitee Release 附件上传失败或过慢，已跳过。GitHub Release 和 latest.json 不受影响。"
+          fi
 
   update-version:
-    needs: [build, sync-to-gitee]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
