@@ -1,13 +1,13 @@
 {
-  "version": "1.0.5.2",
+  "version": "1.0.5.3",
   "releaseDate": "2026-07-13",
-  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.2/NYPD-v1.0.5.2.zip",
+  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.3/NYPD-v1.0.5.3.zip",
   "downloadUrls": {
-    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.2/NYPD-v1.0.5.2.zip",
-    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.5.2/NYPD-v1.0.5.2.zip"
+    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.3/NYPD-v1.0.5.3.zip",
+    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.5.3/NYPD-v1.0.5.3.zip"
   },
   "changelog": [
-    "🐛  修复插件检测不到软件的问题"
+    "✨ 界面优化，修复了若干问题"
   ],
-  "sha256": "c61bf4905dc0e15f70f3a2c0d54d193569575216bdb4e30fbb6332baff45805f"
+  "sha256": "d9b76a9c0adf2848a55385dee8474996768ec58cb37b41e6e85ae4ad8449ce55"
 }
