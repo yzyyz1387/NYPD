@@ -43,6 +43,21 @@
             <Style TargetType="{x:Type Button}" BasedOn="{StaticResource MaterialDesignRaisedButton}">
                 <Setter Property="FontFamily" Value="Microsoft YaHei" />
                 <Setter Property="MinHeight" Value="32" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="IconButtonPanelStyle" TargetType="{x:Type StackPanel}">
+                <Setter Property="Orientation" Value="Horizontal" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Style.Resources>
+                    <Style TargetType="{x:Type materialDesign:PackIcon}">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource MaterialDesignTextBlock}">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Margin" Value="0,-1,0,0" />
+                    </Style>
+                </Style.Resources>
             </Style>
 
             <Style x:Key="WindowBorderStyle" TargetType="Border">
@@ -89,7 +104,7 @@
             <Style x:Key="CellTextStyle" TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                <Setter Property="Margin" Value="8,0" />
+                <Setter Property="Margin" Value="0" />
             </Style>
 
             <Style x:Key="PathTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CellTextStyle}">
@@ -225,37 +240,37 @@
                                 <DockPanel LastChildFill="True">
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <Button Margin="6,0,0,0" Click="InstallBrowserExtension_Click" ToolTip="释放并安装浏览器插件">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="Puzzle" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock Text="安装浏览器插件" />
                                             </StackPanel>
                                         </Button>
                                         <Button Margin="6,0,0,0" Click="OpenDownloadFolder_Click" ToolTip="打开默认下载目录">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock Text="目录" />
                                             </StackPanel>
                                         </Button>
                                         <Button x:Name="BulkPauseButton" Margin="6,0,0,0" Click="ToggleAllPause_Click" ToolTip="暂停或继续所有下载">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon x:Name="BulkPauseIcon" Kind="Pause" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock x:Name="BulkPauseText" Text="全部暂停" />
                                             </StackPanel>
                                         </Button>
                                         <Button Margin="6,0,0,0" Click="CancelAll_Click" ToolTip="取消所有未完成下载">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="Close" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock Text="全部取消" />
                                             </StackPanel>
                                         </Button>
                                         <Button x:Name="MultiSelectButton" Margin="6,0,0,0" Click="ToggleMultiSelect_Click" ToolTip="多选下载记录">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="CheckboxMultipleMarkedOutline" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock x:Name="MultiSelectText" Text="多选模式" />
                                             </StackPanel>
                                         </Button>
                                         <Button x:Name="DeleteSelectedButton" Margin="6,0,0,0" Click="DeleteSelected_Click" Visibility="Collapsed" ToolTip="删除选中的下载记录">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="Delete" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock Text="删除选中" />
                                             </StackPanel>
@@ -288,7 +303,7 @@
                                     <DataGrid.ColumnHeaderStyle>
                                         <Style TargetType="{x:Type DataGridColumnHeader}">
                                             <Setter Property="VerticalContentAlignment" Value="Center" />
-                                            <Setter Property="Padding" Value="8,0" />
+                                            <Setter Property="Padding" Value="16,0" />
                                         </Style>
                                     </DataGrid.ColumnHeaderStyle>
                                     <DataGrid.ContextMenu>
@@ -310,8 +325,8 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="文件" Binding="{Binding Name}" Width="2*" MinWidth="150" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTemplateColumn Header="状态" Width="96" MinWidth="92">
+                                        <DataGridTextColumn Header="文件" Binding="{Binding Name}" Width="270" MinWidth="140" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTemplateColumn Header="状态" Width="82" MinWidth="72">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding StatusDisplay}" ToolTip="{Binding Status}" MouseLeftButtonUp="StatusText_Click">
@@ -319,7 +334,7 @@
                                                             <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextStyle}">
                                                                 <Setter Property="Cursor" Value="Hand" />
                                                                 <Setter Property="Foreground" Value="#555555" />
-                                                                <Setter Property="Margin" Value="4,0" />
+                                                                <Setter Property="Margin" Value="0" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsCompleted}" Value="True">
                                                                         <Setter Property="Foreground" Value="#16803C" />
@@ -339,28 +354,22 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn Header="进度" Width="250" MinWidth="210">
+                                        <DataGridTemplateColumn Header="进度" Width="250" MinWidth="190">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <StackPanel Margin="8,3">
+                                                    <StackPanel Margin="0,3">
                                                         <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" Style="{StaticResource FlatProgressBarStyle}" />
                                                         <TextBlock Text="{Binding Progress}" Margin="0,3,0,0" FontSize="12" TextTrimming="CharacterEllipsis" />
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="速度" Binding="{Binding Speed}" Width="124" MinWidth="110" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTemplateColumn Header="保存位置" Width="1.3*" MinWidth="130">
+                                        <DataGridTextColumn Header="速度" Binding="{Binding Speed}" Width="150" MinWidth="126" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="耗时" Binding="{Binding Duration}" Width="126" MinWidth="108" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTemplateColumn Header="操作" Width="132" MinWidth="124">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding Destination}" Style="{StaticResource PathTextStyle}" MouseLeftButtonUp="OpenDownloadPath_Click" />
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn Header="操作" Width="116" MinWidth="108">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,8,0">
                                                         <Button Style="{StaticResource MaterialDesignIconButton}" Width="32" Height="32" Padding="5" Margin="0,0,4,0" Click="ToggleRowPause_Click" ToolTip="{Binding PauseText}" IsEnabled="{Binding CanPauseResume}">
                                                             <materialDesign:PackIcon Kind="{Binding PauseIcon}" Width="18" Height="18" />
                                                         </Button>
@@ -396,7 +405,7 @@
                                         </ContextMenu>
                                     </DataGrid.ContextMenu>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="时间" Binding="{Binding Time}" Width="150" />
+                                        <DataGridTextColumn Header="时间" Binding="{Binding TimeDisplay}" Width="190" MinWidth="180" />
                                         <DataGridTextColumn Header="文件" Binding="{Binding Name}" Width="260" />
                                         <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90" />
                                         <DataGridTemplateColumn Header="保存位置" Width="*">
@@ -419,7 +428,7 @@
                             <DockPanel>
                                 <TextBlock Text="操作日志" Style="{StaticResource PageTitleStyle}" />
                                 <Button DockPanel.Dock="Right" Click="ClearLog_Click" HorizontalAlignment="Right" Margin="0,0,0,12">
-                                    <StackPanel Orientation="Horizontal">
+                                    <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                         <materialDesign:PackIcon Kind="DeleteSweep" Width="18" Height="18" Margin="0,0,6,0" />
                                         <TextBlock Text="清理日志" />
                                     </StackPanel>
@@ -455,7 +464,7 @@
                                         <TextBlock Text="下载目录" VerticalAlignment="Center" />
                                         <TextBox x:Name="DefaultDirectoryTextBox" Grid.Column="1" Margin="0,0,8,12" TextChanged="SettingsTextBox_TextChanged" LostFocus="SettingsField_LostFocus" />
                                         <Button Grid.Column="2" Margin="0,0,0,12" Click="BrowseDefaultDirectory_Click">
-                                            <StackPanel Orientation="Horizontal">
+                                            <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                 <materialDesign:PackIcon Kind="FolderOpen" Width="18" Height="18" Margin="0,0,6,0" />
                                                 <TextBlock Text="选择" />
                                             </StackPanel>
@@ -480,7 +489,7 @@
                                         <TextBlock Grid.Row="4" Text="浏览器插件" VerticalAlignment="Center" />
                                         <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,18">
                                             <Button Click="InstallBrowserExtension_Click" ToolTip="释放插件文件并复制安装目录">
-                                                <StackPanel Orientation="Horizontal">
+                                                <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                     <materialDesign:PackIcon Kind="Puzzle" Width="18" Height="18" Margin="0,0,6,0" />
                                                     <TextBlock Text="安装浏览器插件" />
                                                 </StackPanel>
@@ -544,13 +553,13 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" HorizontalAlignment="Right">
                                                     <Button HorizontalAlignment="Right" Click="CheckUpdatePlaceholder_Click" ToolTip="检查更新">
-                                                        <StackPanel Orientation="Horizontal">
+                                                        <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                             <materialDesign:PackIcon Kind="Update" Width="18" Height="18" Margin="0,0,6,0" />
                                                             <TextBlock Text="检查更新" />
                                                         </StackPanel>
                                                     </Button>
                                                     <Button HorizontalAlignment="Right" Margin="0,8,0,0" Click="OpenOfficialSite_Click" ToolTip="访问官网">
-                                                        <StackPanel Orientation="Horizontal">
+                                                        <StackPanel Style="{StaticResource IconButtonPanelStyle}">
                                                             <materialDesign:PackIcon Kind="Web" Width="18" Height="18" Margin="0,0,6,0" />
                                                             <TextBlock Text="访问官网" />
                                                         </StackPanel>

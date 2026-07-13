@@ -22,6 +22,16 @@ sealed class AppSettings
 
 sealed record HistoryItem(DateTime Time, string Name, string Destination, string Status)
 {
+    public string TimeDisplay
+    {
+        get
+        {
+            var hour = Time.Hour % 12;
+            if (hour == 0) hour = 12;
+            return $"{Time:yyyy-MM-dd} {(Time.Hour < 12 ? "上午" : "下午")} {hour:00}:{Time:mm:ss}";
+        }
+    }
+
     public bool DestinationExists => File.Exists(Destination);
     public string MissingTip => DestinationExists ? "打开文件所在位置" : "该文件被移动或已删除";
 }

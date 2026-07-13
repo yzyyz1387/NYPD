@@ -51,6 +51,7 @@ static void SelfCheck()
     Assert(DirectDownload.Parse("https://files.nexus-cdn.com/mods/1704/uuid", null, @"C:\Downloads\real file.rar").SuggestedFileName == "real file.rar");
     Assert(Rejects("https://nexusmods.com.evil.example/file.zip"));
     Assert(FileName.Safe("../bad:name?.zip", "fallback.bin") == "bad_name_.zip");
+    Assert(new HistoryItem(new DateTime(2026, 7, 13, 14, 5, 6), "test", "", "完成").TimeDisplay == "2026-07-13 下午 02:05:06");
     var segments = RangeSegment.Create(10, 4);
     Assert(segments.Count == 4 && segments[0] == new RangeSegment(0, 1) && segments[3] == new RangeSegment(7, 9));
     Assert(!Downloader.ShouldUseSegments(5 * 1024 * 1024 - 1, true, 1));
@@ -540,10 +541,14 @@ sealed class DownloadTask : INotifyPropertyChanged
     private string _status = "";
     private string _progress = "";
     private string _speed = "";
+    private string _duration = "-";
     private string _destination = "";
     private double _progressPercent;
     private DownloadMode _mode;
     private bool _isSelected;
+    private DateTime? _downloadClockStartedAt;
+    private TimeSpan _downloadElapsed;
+    private long _downloadedBytes;
 
     public DownloadTask(DirectDownload download) => Download = download;
     public DirectDownload Download { get; }
@@ -557,9 +562,15 @@ sealed class DownloadTask : INotifyPropertyChanged
     public string Status { get => _status; set => Set(ref _status, value); }
     public string Progress { get => _progress; set => Set(ref _progress, value); }
     public string Speed { get => _speed; set => Set(ref _speed, value); }
+    public string Duration { get => _duration; set => Set(ref _duration, value); }
     public string Destination { get => _destination; set => Set(ref _destination, value); }
     public double ProgressPercent { get => _progressPercent; set => Set(ref _progressPercent, value); }
     public bool IsSelected { get => _isSelected; set => Set(ref _isSelected, value); }
+    public TimeSpan DownloadElapsed => _downloadClockStartedAt is DateTime started ? _downloadElapsed + (DateTime.UtcNow - started) : _downloadElapsed;
+    public string ElapsedText => FormatDuration(DownloadElapsed);
+    public string AverageSpeedText => _downloadedBytes > 0 && DownloadElapsed.TotalSeconds > 0.01
+        ? $"平均 {FileName.FormatBytes((long)(_downloadedBytes / DownloadElapsed.TotalSeconds))}/s"
+        : "平均 -";
     public string PauseText => Mode is DownloadMode.Paused or DownloadMode.Failed ? "继续" : "暂停";
     public string PauseIcon => Mode is DownloadMode.Paused or DownloadMode.Failed ? "Play" : "Pause";
     public bool CanPauseResume => Mode is DownloadMode.Queued or DownloadMode.Downloading or DownloadMode.Paused or DownloadMode.Failed;
@@ -575,6 +586,40 @@ sealed class DownloadTask : INotifyPropertyChanged
     public bool DestinationExists => Mode != DownloadMode.Completed || File.Exists(Destination);
     public string MissingTip => DestinationExists ? "打开文件所在位置" : "该文件被移动或已删除";
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void StartDownloadClock()
+    {
+        _downloadClockStartedAt ??= DateTime.UtcNow;
+        Duration = $"已用 {ElapsedText}";
+    }
+
+    public void StopDownloadClock()
+    {
+        if (_downloadClockStartedAt is not DateTime started) return;
+        _downloadElapsed += DateTime.UtcNow - started;
+        _downloadClockStartedAt = null;
+        Duration = $"用时 {ElapsedText}";
+    }
+
+    public void UpdateTransfer(long received, long? total, double speedBytesPerSecond)
+    {
+        _downloadedBytes = total is long knownTotal && received >= knownTotal ? knownTotal : received;
+        if (total is long totalBytes && totalBytes > 0 && received >= totalBytes)
+        {
+            StopDownloadClock();
+            return;
+        }
+
+        Duration = total is long known && known > received && speedBytesPerSecond > 0
+            ? $"剩余 {FormatDuration(TimeSpan.FromSeconds((known - received) / speedBytesPerSecond))}"
+            : $"已用 {ElapsedText}";
+    }
+
+    private static string FormatDuration(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero) value = TimeSpan.Zero;
+        return value.TotalHours >= 1 ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}" : $"{value.Minutes:00}:{value.Seconds:00}";
+    }
 
     private void Set<T>(ref T field, T value, [CallerMemberName] string? property = null)
     {

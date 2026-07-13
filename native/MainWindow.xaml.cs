@@ -119,6 +119,7 @@ public partial class MainWindow : Window
             Status = "等待中",
             Progress = "-",
             Speed = "-",
+            Duration = "-",
             ProgressPercent = 0,
             Mode = global::DownloadMode.Queued
         };
@@ -168,6 +169,7 @@ public partial class MainWindow : Window
             task.Mode = global::DownloadMode.Downloading;
             task.HasStarted = true;
             task.Status = "下载中";
+            task.StartDownloadClock();
             task.Cancellation = new CancellationTokenSource();
             try
             {
@@ -186,25 +188,29 @@ public partial class MainWindow : Window
                     {
                         task.Progress = FormatBytes(value.Received);
                     }
+                    task.UpdateTransfer(value.Received, value.Total, value.SpeedBytesPerSecond);
                     task.Speed = value.SpeedBytesPerSecond > 0 ? $"{FormatBytes((long)value.SpeedBytesPerSecond)}/s" : "-";
                 });
 
                 var result = await _downloader.DownloadAsync(task.Download, task.TargetDirectory, task.NameOverride, progress, task.Cancellation.Token);
+                task.StopDownloadClock();
                 task.Name = result.Name;
                 task.Mode = global::DownloadMode.Completed;
                 task.Status = "完成";
-                task.Progress = "100%";
                 task.ProgressPercent = 100;
-                task.Speed = "-";
+                task.Speed = task.AverageSpeedText;
+                task.Duration = task.ElapsedText;
                 task.Destination = result.Destination;
+                task.Progress = $"100%  大小：{FormatCompactBytes(new FileInfo(result.Destination).Length)}";
 
                 var historyItem = new global::HistoryItem(DateTime.Now, result.Name, result.Destination, "完成");
                 global::AppData.AddHistory(historyItem);
                 _history.Insert(0, historyItem);
-                global::AppData.Log($"已完成: {result.Destination}", global::AppLogLevel.Success);
+                global::AppData.Log($"下载成功: {result.Destination}，耗时 {task.ElapsedText}，{task.AverageSpeedText}", global::AppLogLevel.Success);
             }
             catch (OperationCanceledException) when (task.Cancellation.IsCancellationRequested)
             {
+                task.StopDownloadClock();
                 task.Speed = "-";
                 if (task.CancelRequested)
                 {
@@ -221,6 +227,7 @@ public partial class MainWindow : Window
             }
             catch (HttpRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
             {
+                task.StopDownloadClock();
                 task.Mode = global::DownloadMode.Failed;
                 task.Speed = "-";
                 task.Status = "链接已过期，请在 Edge 重新下载";
@@ -228,6 +235,7 @@ public partial class MainWindow : Window
             }
             catch (Exception error)
             {
+                task.StopDownloadClock();
                 task.Mode = global::DownloadMode.Failed;
                 task.Speed = "-";
                 task.Status = ToChineseStatus(error.Message);
@@ -358,6 +366,7 @@ public partial class MainWindow : Window
         task.Mode = global::DownloadMode.Cancelled;
         task.Status = "已取消";
         task.Speed = "-";
+        task.Duration = "-";
         task.ProgressPercent = 0;
     }
 
@@ -1046,6 +1055,9 @@ public partial class MainWindow : Window
 
     private static string FormatBytes(long value)
         => global::FileName.FormatBytes(value);
+
+    private static string FormatCompactBytes(long value)
+        => FormatBytes(value).Replace(" KB", "K").Replace(" MB", "M").Replace(" GB", "G").Replace(" TB", "T");
 
     private static string ToChineseStatus(string message) => message switch
     {
