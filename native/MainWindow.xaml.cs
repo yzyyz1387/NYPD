@@ -13,6 +13,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
+using Microsoft.Win32;
 using Clipboard = System.Windows.Clipboard;
 using RadioButton = System.Windows.Controls.RadioButton;
 
@@ -69,6 +70,7 @@ public partial class MainWindow : Window
             _ = ListenAsync();
             Dispatcher.BeginInvoke(new Action(async () =>
             {
+                RepairBrowserNativeHostIfNeeded();
                 await CheckUpdateInteractiveAsync(true);
                 PromptBrowserExtensionInstallIfNeeded();
             }));
@@ -718,6 +720,7 @@ public partial class MainWindow : Window
         try
         {
             var directory = ReleaseBrowserExtension();
+            RegisterBrowserNativeHost();
             Clipboard.SetText(directory);
             global::AppData.MarkBrowserExtensionInstalled();
             global::AppData.Log($"浏览器插件已释放到：{directory}");
@@ -749,6 +752,42 @@ public partial class MainWindow : Window
         }
 
         return global::AppData.BrowserExtensionDirectory;
+    }
+
+    private static void RepairBrowserNativeHostIfNeeded()
+    {
+        if (!global::AppData.BrowserExtensionInstalled) return;
+        try { RegisterBrowserNativeHost(); }
+        catch (Exception ex) { global::AppData.Log($"浏览器桥接修复失败：{ex.Message}", global::AppLogLevel.Warning); }
+    }
+
+    private static void RegisterBrowserNativeHost()
+    {
+        const string hostName = "com.nexusmods.downloader";
+        const string extensionId = "deppclipjakbhemmkjblhkgepkglggbj";
+        var executable = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName
+            ?? throw new InvalidOperationException("无法获取当前程序路径。");
+        var manifestPath = Path.Combine(global::AppData.Root, "native-host.json");
+        var manifest = new Dictionary<string, object>
+        {
+            ["name"] = hostName,
+            ["description"] = "N网下载器-NYPD",
+            ["path"] = executable,
+            ["type"] = "stdio",
+            ["allowed_origins"] = new[] { $"chrome-extension://{extensionId}/" }
+        };
+
+        Directory.CreateDirectory(global::AppData.Root);
+        File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8);
+
+        foreach (var browser in new[] { @"Software\Google\Chrome", @"Software\Microsoft\Edge" })
+        {
+            using var key = Registry.CurrentUser.CreateSubKey($@"{browser}\NativeMessagingHosts\{hostName}")
+                ?? throw new InvalidOperationException($"无法写入 {browser} Native Messaging 注册表。");
+            key.SetValue("", manifestPath);
+        }
+
+        global::AppData.Log("浏览器桥接已注册到 Chrome / Edge。", global::AppLogLevel.System);
     }
 
     private void OpenLink_Click(object sender, RequestNavigateEventArgs e)
