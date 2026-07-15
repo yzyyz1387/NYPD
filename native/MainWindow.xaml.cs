@@ -766,7 +766,11 @@ public partial class MainWindow : Window
     private static void RepairBrowserNativeHostIfNeeded()
     {
         if (!global::AppData.BrowserExtensionInstalled) return;
-        try { RegisterBrowserNativeHost(); }
+        try
+        {
+            ReleaseBrowserExtension();
+            RegisterBrowserNativeHost();
+        }
         catch (Exception ex) { global::AppData.Log($"浏览器桥接修复失败：{ex.Message}", global::AppLogLevel.Warning); }
     }
 

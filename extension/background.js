@@ -1,5 +1,10 @@
 const host = "com.nexusmods.downloader";
 const defaultInterceptMinMb = 5;
+const startupGraceMs = 3000;
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.session.set({ browserStartedAt: Date.now() });
+});
 
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get(["interceptEnabled", "interceptMinMb"]);
@@ -39,7 +44,14 @@ async function waitKnownDownloadSize(download) {
   return size;
 }
 
+async function belongsToCurrentBrowserSession(download) {
+  const { browserStartedAt = Date.now() } = await chrome.storage.session.get("browserStartedAt");
+  const startedAt = Date.parse(download.startTime);
+  return !Number.isFinite(startedAt) || startedAt >= browserStartedAt - startupGraceMs;
+}
+
 chrome.downloads.onCreated.addListener(async download => {
+  if (download.state !== "in_progress" || !await belongsToCurrentBrowserSession(download)) return;
   const { interceptEnabled, interceptMinMb } = await chrome.storage.local.get({ interceptEnabled: true, interceptMinMb: defaultInterceptMinMb });
   if (!interceptEnabled) return;
   if (!isNexusDownload(download.finalUrl)) return;
