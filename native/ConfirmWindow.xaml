@@ -33,7 +33,7 @@
     </Window.Resources>
 
     <Border CornerRadius="8" Background="{DynamicResource MaterialDesignPaper}" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1">
-        <Grid>
+        <Grid x:Name="WindowContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="42" />
                 <RowDefinition Height="*" />
@@ -48,20 +48,61 @@
 
             <Grid Grid.Row="1" Margin="24,22,24,20">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <ScrollViewer MaxHeight="390" VerticalScrollBarVisibility="Auto">
-                    <TextBlock x:Name="MessageTextBlock" TextWrapping="Wrap" FontSize="14" />
+                <TextBlock x:Name="ClipboardStatusTextBlock"
+                           Margin="0,0,0,12"
+                           Foreground="{DynamicResource PrimaryHueMidBrush}"
+                           FontWeight="Bold"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed" />
+                <ScrollViewer Grid.Row="1" MaxHeight="390" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock x:Name="ExtensionLinksTextBlock" Margin="0,0,0,8" TextWrapping="Wrap" FontSize="14" Visibility="Collapsed">
+                            <Run Text="插件文件已经正常释放，不影响安装。&#10;&#10;安装步骤：&#10;1. 打开浏览器扩展页面：Edge 输入 " />
+                            <Hyperlink Tag="edge://extensions/" Click="CopyBrowserExtensionUrl_Click" Foreground="{DynamicResource PrimaryHueMidBrush}">edge://extensions/</Hyperlink>
+                            <Run Text="，Chrome 输入 " />
+                            <Hyperlink Tag="chrome://extensions/" Click="CopyBrowserExtensionUrl_Click" Foreground="{DynamicResource PrimaryHueMidBrush}">chrome://extensions/</Hyperlink>
+                            <Run Text="。&#10;2. 打开“开发人员模式”。&#10;3. 点击“加载解压缩的扩展”。&#10;4. 选择下方目录即可。" />
+                        </TextBlock>
+                        <TextBlock x:Name="MessageTextBlock" TextWrapping="Wrap" FontSize="14" />
+                    </StackPanel>
                 </ScrollViewer>
-                <CheckBox x:Name="OptionCheckBox" Grid.Row="1" Margin="0,8,0,14" Visibility="Collapsed" />
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Grid x:Name="ExtensionPathPanel" Grid.Row="2" Margin="0,14,0,14" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="ExtensionPathTextBox" IsReadOnly="True" VerticalContentAlignment="Center" />
+                    <Button Grid.Column="1" Margin="8,0,0,0" Content="复制路径" Click="CopyExtensionPath_Click" />
+                    <Button Grid.Column="2" Margin="8,0,0,0" Content="打开目录" Click="OpenExtensionPath_Click" />
+                </Grid>
+                <CheckBox x:Name="OptionCheckBox" Grid.Row="3" Margin="0,8,0,14" Visibility="Collapsed" />
+                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="ConfirmButton" Click="Confirm_Click" />
-                    <Button Margin="8,0,0,0" Click="Cancel_Click" Content="取消" />
+                    <Button x:Name="CancelButton" Margin="8,0,0,0" Click="Cancel_Click" Content="取消" />
                 </StackPanel>
             </Grid>
+
+            <Border x:Name="CopyToast"
+                    Grid.RowSpan="2"
+                    Panel.ZIndex="100"
+                    Margin="24,0,24,24"
+                    Padding="20,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Background="{DynamicResource PrimaryHueDarkBrush}"
+                    CornerRadius="7"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed">
+                <TextBlock x:Name="CopyToastText" Foreground="White" FontWeight="SemiBold" FontSize="14" />
+            </Border>
         </Grid>
     </Border>
 </Window>

@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>N网下载器-NYPD</title>
     <meta name="description" content="N网下载器-NYPD，把 Nexus Mods 的大文件下载交给一个更顺手的本机工具。">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20261114c">
   </head>
   <body>
     <nav class="nav">
       <a class="brand" href="#top"><span>NY<br>PD</span><strong>N网下载器-NYPD</strong></a>
       <div class="links">
+        <a href="#top">下载</a>
         <a href="#features">功能</a>
         <a href="#screenshots">界面</a>
         <a href="#extension">插件</a>
@@ -37,7 +38,7 @@
 
     <main>
       <section id="features" class="section">
-        <h2>为什么做它</h2>
+        <h2>功能特性</h2>
         <div class="cards">
           <article class="glow-follow">
             <span>01</span>
@@ -60,13 +61,10 @@
       <section id="screenshots" class="section alt">
         <h2>界面展示</h2>
         <div class="showcase">
-          <div class="screen-stack">
-            <img src="images/downloadpage.png" alt="下载管理" class="screen-img">
-            <img src="images/historypage.png" alt="下载历史" class="screen-img">
-            <img src="images/logspage.png" alt="操作日志" class="screen-img">
-          </div>
-          <div class="screen-copy glow-follow">
-            <h3>现代化下载管理界面</h3>
+          <div class="screen-stack" role="button" tabindex="0" aria-label="界面展示：当前为下载管理；点击查看下一张">
+            <img src="images/downloadpage.png" alt="下载管理" class="screen-img is-front">
+            <img src="images/historypage.png" alt="下载历史" class="screen-img is-middle">
+            <img src="images/logspage.png" alt="操作日志" class="screen-img is-back">
           </div>
         </div>
       </section>
@@ -84,9 +82,9 @@
       <section id="install" class="section install">
         <h2>安装方式</h2>
         <div class="steps">
-          <div class="glow-follow"><b>1</b><p>先安装并打开 NYPD。</p></div>
-          <div class="glow-follow"><b>2</b><p>按软件里的提示，把浏览器插件加载进去。</p></div>
-          <div class="glow-follow"><b>3</b><p>回到 Nexus Mods 正常点击下载，大文件会自己出现在 NYPD 里。</p></div>
+          <div class="glow-follow"><b>1</b><p>先安装并运行 NYPD</p></div>
+          <div class="glow-follow"><b>2</b><p>按软件中提示，在浏览器安装配套插件</p></div>
+          <div class="glow-follow"><b>3</b><p>设置好文件触发大小，到 Nexus Mods 点击下载，大文件会转到在 NYPD 里下载</p></div>
         </div>
       </section>
     </main>
@@ -114,6 +112,44 @@
           element.style.setProperty("--mx", `${event.clientX - rect.left}px`);
           element.style.setProperty("--my", `${event.clientY - rect.top}px`);
         });
+      });
+
+      const screenStack = document.querySelector(".screen-stack");
+      const screens = [...screenStack.querySelectorAll(".screen-img")];
+      let frontScreen = 0;
+      let switchingScreen = false;
+
+      const renderScreens = () => {
+        screens.forEach(screen => screen.classList.remove("is-front", "is-middle", "is-back"));
+        screens[frontScreen].classList.add("is-front");
+        screens[(frontScreen + 1) % screens.length].classList.add("is-middle");
+        screens[(frontScreen + 2) % screens.length].classList.add("is-back");
+        screenStack.setAttribute("aria-label", `界面展示：当前为${screens[frontScreen].alt}；点击查看下一张`);
+      };
+
+      const showNextScreen = () => {
+        if (switchingScreen) return;
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          frontScreen = (frontScreen + 1) % screens.length;
+          renderScreens();
+          return;
+        }
+
+        switchingScreen = true;
+        screenStack.classList.add("is-cycling");
+        screenStack.addEventListener("animationend", () => {
+          screenStack.classList.remove("is-cycling");
+          frontScreen = (frontScreen + 1) % screens.length;
+          renderScreens();
+          switchingScreen = false;
+        }, { once: true });
+      };
+
+      screenStack.addEventListener("click", showNextScreen);
+      screenStack.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        showNextScreen();
       });
     </script>
   </body>

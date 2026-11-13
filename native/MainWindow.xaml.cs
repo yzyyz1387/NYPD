@@ -730,14 +730,16 @@ public partial class MainWindow : Window
         {
             var directory = ReleaseBrowserExtension();
             RegisterBrowserNativeHost();
-            Clipboard.SetText(directory);
             global::AppData.MarkBrowserExtensionInstalled();
             global::AppData.Log($"浏览器插件已释放到：{directory}");
-            ConfirmWindow.Ask(
-                this,
-                "安装浏览器插件",
-                $"插件文件已释放到：\n{directory}\n\n目录路径已复制到剪贴板。\n\n安装步骤：\n1. 打开浏览器扩展页面：Edge 输入 edge://extensions/，Chrome 输入 chrome://extensions/。\n2. 打开“开发人员模式”。\n3. 点击“加载解压缩的扩展”。\n4. 选择上面的目录即可。",
-                "知道了");
+            var copied = true;
+            try { System.Windows.Forms.Clipboard.SetDataObject(directory, true, 10, 100); }
+            catch (Exception ex)
+            {
+                copied = false;
+                global::AppData.Log($"插件目录无法复制到剪贴板：{ex.Message}", global::AppLogLevel.Warning);
+            }
+            ConfirmWindow.ShowBrowserExtensionInstructions(this, directory, copied);
         }
         catch (Exception ex)
         {
