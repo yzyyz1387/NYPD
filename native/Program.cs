@@ -147,6 +147,8 @@ sealed class Downloader
         await using var output = new MemoryStream();
         await CopyAsync(input, output, new ProgressReporter("test", 3, 0, null), CancellationToken.None, 3);
         if (output.Length != 3) throw new InvalidOperationException("self-check failed");
+        if (!ShouldRetryIncomplete(0) || ShouldRetryIncomplete(3))
+            throw new InvalidOperationException("self-check failed");
         File.Delete(temp);
     }
 
@@ -170,6 +172,7 @@ sealed class Downloader
     {
         foreach (var chunk in Directory.GetFiles(paths.Directory, $"{Path.GetFileName(paths.PartPath)}.*")) File.Delete(chunk);
         var restarted = false;
+        var retries = 0;
 
         while (true)
         {
@@ -185,33 +188,51 @@ sealed class Downloader
                 if (offset == knownTotal)
                     return Finish(paths.PartPath, paths.Directory, nameOverride ?? metadata.Name);
             }
-            using var request = CreateRequest(download);
-            if (offset > 0) request.Headers.Range = new RangeHeaderValue(offset, null);
-            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            ThrowIfExpired(response);
-            response.EnsureSuccessStatusCode();
-
-            if (offset > 0 && (response.StatusCode != HttpStatusCode.PartialContent || response.Content.Headers.ContentRange?.From != offset))
+            try
             {
-                if (restarted) throw new InvalidOperationException("The CDN does not support a safe resume for this file.");
-                File.Delete(paths.PartPath);
-                restarted = true;
-                continue;
-            }
+                using var request = CreateRequest(download);
+                if (offset > 0) request.Headers.Range = new RangeHeaderValue(offset, null);
+                using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                ThrowIfExpired(response);
+                response.EnsureSuccessStatusCode();
 
-            var total = response.Content.Headers.ContentRange?.Length;
-            if (total is null && response.Content.Headers.ContentLength is long length) total = length + offset;
-            if (total is null && offset > 0) total = metadata.Total;
-            var reporter = new ProgressReporter(metadata.Name, total, offset, progress);
-            await using var output = new FileStream(paths.PartPath, offset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
-            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+                if (offset > 0 && (response.StatusCode != HttpStatusCode.PartialContent || response.Content.Headers.ContentRange?.From != offset))
+                {
+                    if (restarted) throw new InvalidOperationException("The CDN does not support a safe resume for this file.");
+                    File.Delete(paths.PartPath);
+                    restarted = true;
+                    retries = 0;
+                    continue;
+                }
+
+                var total = response.Content.Headers.ContentRange?.Length;
+                if (total is null && response.Content.Headers.ContentLength is long length) total = length + offset;
+                if (total is null && offset > 0) total = metadata.Total;
+                var reporter = new ProgressReporter(metadata.Name, total, offset, progress);
+                await using var output = new FileStream(paths.PartPath, offset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 128, useAsync: true);
+                await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
                 await CopyAsync(input, output, reporter, cancellationToken, total is long expectedTotal ? expectedTotal - offset : null);
-            if (total is long expected && new FileInfo(paths.PartPath).Length != expected)
-                throw new IOException("Download ended before the expected file size was reached.");
-            reporter.Complete();
-            return Finish(paths.PartPath, paths.Directory, nameOverride ?? metadata.Name);
+                var actual = new FileInfo(paths.PartPath).Length;
+                if (total is long expected && actual != expected)
+                {
+                    if (!ShouldRetryIncomplete(retries))
+                        throw new IOException("Download ended before the expected file size was reached.");
+                    retries++;
+                    await Task.Delay(300, cancellationToken);
+                    continue;
+                }
+                reporter.Complete();
+                return Finish(paths.PartPath, paths.Directory, nameOverride ?? metadata.Name);
+            }
+            catch (IOException) when (retries < 3)
+            {
+                retries++;
+                await Task.Delay(300, cancellationToken);
+            }
         }
     }
+
+    private static bool ShouldRetryIncomplete(int retries) => retries < 3;
 
     private async Task<DownloadResult> DownloadParallelAsync(DirectDownload download, DownloadPaths paths, DownloadMetadata metadata, string? nameOverride, IProgress<DownloadProgress>? progress, CancellationToken cancellationToken)
     {

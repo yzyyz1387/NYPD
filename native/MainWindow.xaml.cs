@@ -14,7 +14,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
 using Microsoft.Win32;
-using Clipboard = System.Windows.Clipboard;
 using RadioButton = System.Windows.Controls.RadioButton;
 
 namespace NexusModsDownloader;
@@ -456,13 +455,13 @@ public partial class MainWindow : Window
     private void CopyDownloadUrl_Click(object sender, RoutedEventArgs e)
     {
         var task = SelectedTask();
-        if (task is not null) Clipboard.SetText(task.Download.Url.OriginalString);
+        if (task is not null) CopyText(task.Download.Url.OriginalString, "下载链接");
     }
 
     private void CopyFilePath_Click(object sender, RoutedEventArgs e)
     {
         var task = SelectedTask();
-        if (task is not null) Clipboard.SetText(task.Destination);
+        if (task is not null) CopyText(task.Destination, "文件路径");
     }
 
     private void OpenDownloadFolder_Click(object sender, RoutedEventArgs e)
@@ -497,7 +496,20 @@ public partial class MainWindow : Window
 
     private void CopyHistoryPath_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedHistoryItem() is { } item) Clipboard.SetText(item.Destination);
+        if (SelectedHistoryItem() is { } item) CopyText(item.Destination, "文件路径");
+    }
+
+    private void CopyText(string text, string description)
+    {
+        try
+        {
+            System.Windows.Forms.Clipboard.SetDataObject(text, true, 10, 100);
+        }
+        catch (Exception error)
+        {
+            global::AppData.Log($"复制{description}失败: {error.Message}", global::AppLogLevel.Warning);
+            ConfirmWindow.Ask(this, "复制失败", $"无法访问系统剪贴板，可能正被第三方剪贴板软件占用。请关闭剪贴板弹窗后重试复制{description}。", "知道了");
+        }
     }
 
     private void DeleteHistoryRecord_Click(object sender, RoutedEventArgs e)
