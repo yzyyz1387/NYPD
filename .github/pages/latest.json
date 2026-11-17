@@ -1,14 +1,14 @@
 {
-  "version": "1.0.5.5",
-  "releaseDate": "2026-11-14",
-  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.5/NYPD-v1.0.5.5.zip",
+  "version": "1.0.5.6",
+  "releaseDate": "2026-11-17",
+  "downloadUrl": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.6/NYPD-v1.0.5.6.zip",
   "downloadUrls": {
-    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.5/NYPD-v1.0.5.5.zip",
-    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.5.5/NYPD-v1.0.5.5.zip"
+    "github": "https://github.com/yzyyz1387/NYPD/releases/download/v1.0.5.6/NYPD-v1.0.5.6.zip",
+    "gitee": "https://gitee.com/yzyyz1387/NYPD/releases/download/v1.0.5.6/NYPD-v1.0.5.6.zip"
   },
   "changelog": [
-    "优化浏览器插件安装流程，剪贴板被占用时仍可复制安装路径",
-    "优化官网移动端布局与界面展示交互"
+    "修复 CDN 提前断流时文件大小不足的问题，下载会从已完成位置续传",
+    "修复复制下载链接时剪贴板被占用可能导致程序退出的问题"
   ],
-  "sha256": "ca37328ad9be32b485eea8dc0164ef4c92111c3ccd4633c57d6d0c62c9e08c47"
+  "sha256": "cbdda7981ee936420b4e6400c5397add82994bdea2f064a75acf1c848c3dbadf"
 }
